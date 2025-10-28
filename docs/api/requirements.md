@@ -1,10 +1,9 @@
 # 🧩 E-commerce Service Requirements Specification (core-commerce)
 
 > **과제 목표**  
-> 상품, 장바구니, 주문, 결제, 쿠폰, 재고, Outbox 이벤트 등  
+> 상품, 장바구니, 주문, 결제, 쿠폰, 재고 등  
 > 이커머스 서비스의 핵심 기능을 중심으로 RESTful API를 설계한다.  
-> Mock 결제 및 Redis 기반 쿠폰 시스템을 활용하여 결제/동시성 로직을 학습하고,  
-> Outbox 패턴을 통해 이벤트 기반 데이터 일관성을 경험한다.
+> Mock 결제 및 Redis 기반 쿠폰 시스템을 활용하여 결제/동시성 로직을 학습하고,
 
 ---
 
@@ -62,7 +61,6 @@
 | PAY-02 | 결제 성공 처리 | 결제 완료 시 주문 상태 `PAID`, 재고 확정 차감, 쿠폰 적용 |
 | PAY-03 | 결제 실패 처리 | 실패 시 주문 상태 `CANCELLED`, 재고 예약 해제 |
 | PAY-04 | 결제 상태 조회 | 결제 상태(대기, 성공, 실패) 조회 |
-| PAY-05 | 결제 로그 기록 | Outbox 이벤트로 결제 이벤트 저장 |
 
 ---
 
@@ -74,7 +72,6 @@
 | INV-02 | 재고 확정 차감 | 결제 성공 시 `stock` 및 `reserved_stock` 감소 |
 | INV-03 | 재고 예약 해제 | 결제 실패 또는 주문 취소 시 `reserved_stock` 감소 |
 | INV-04 | 재고 조회 | 상품별 현재 재고 수량 및 예약 재고 조회 |
-| INV-05 | 재고 이벤트 기록 | Outbox에 재고 변경 이벤트 기록 |
 
 ---
 
@@ -98,10 +95,6 @@
 | E-02 | 결제 이벤트 기록 | 결제 성공/실패 이벤트 기록 |
 | E-03 | 재고 이벤트 기록 | 재고 예약/확정 차감/예약 해제 이벤트 기록 |
 | E-04 | 쿠폰 이벤트 기록 | 쿠폰 발급/사용 이벤트 기록 |
-| E-05 | 이벤트 상태 변경 | Outbox 상태(`PENDING`, `SENT`, `FAILED`) 업데이트 |
-
-> 💡 Outbox 이벤트는 Kafka 등 메시지 큐로 전달되어  
-> 결제·재고 시스템 간 비동기 데이터 일관성을 유지한다.
 
 ---
 
@@ -119,7 +112,6 @@
 | **Coupon** | coupon_id, name, discount_value, expiry_date | 쿠폰 정의 |
 | **UserCoupon** | user_coupon_id, coupon_id, user_id, is_used | 사용자 쿠폰 내역 |
 | **Inventory** | product_id, stock, reserved_stock | 재고 관리 (Product와 1:1 관계) |
-| **OutboxEvent** | event_id, type, payload, status | 이벤트 로그 |
 
 ---
 
@@ -178,8 +170,8 @@
 | 시나리오 | 트랜잭션 범위 |
 | --- | --- |
 | 주문 생성 | Order + OrderItem + 재고 예약 |
-| 결제 성공 | Payment + Order + 재고 차감 + 쿠폰 사용 + Outbox |
-| 결제 실패 | Payment + Order 취소 + 재고 해제 + Outbox |
+| 결제 성공 | Payment + Order + 재고 차감 + 쿠폰 사용 |
+| 결제 실패 | Payment + Order 취소 + 재고 해제 |
 | 장바구니 담기 | CartItem 생성/수정 |
 | 쿠폰 발급 | UserCoupon 생성 + Redis 카운트 감소 |
 
@@ -197,8 +189,7 @@
 ### 결제 처리
 1️⃣ 결제 요청(Mock Payment API)  
 2️⃣ 성공 → 주문 `PAID`, 재고 확정 차감, 쿠폰 사용  
-3️⃣ 실패 → 주문 `CANCELLED`, 예약 해제  
-4️⃣ Outbox 이벤트 기록 (`PAYMENT_SUCCESS`, `ORDER_CANCELLED`)
+3️⃣ 실패 → 주문 `CANCELLED`, 예약 해제
 
 ### 쿠폰 발급
 1️⃣ Redis로 중복 발급 확인 (`SISMEMBER user:coupon:{couponId} {userId}`)
@@ -226,8 +217,7 @@
    ↓
  ├─ 성공 → 재고 차감, 쿠폰 할인, 주문 상태 PAID
  └─ 실패 → 예약 해제, 주문 상태 CANCELLED
-   ↓
-[Outbox 이벤트 기록]
+
 ```
 
 ---
@@ -236,5 +226,4 @@
 - 배송(Delivery), 정산(Settlement) 도메인으로 확장 가능
 - 리뷰 시스템 연동 시 OrderItem 참조 활용
 - 실제 PG(Payment Gateway) 연동 시 Mock API 대체 가능
-- Kafka 기반 Outbox 이벤트 스트림 처리 확장
 - Redis 분산 락으로 다중 서버 환경 동시성 제어 가능
