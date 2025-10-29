@@ -10,14 +10,14 @@ import java.util.*;
  * 쿠폰 관리 Controller
  */
 @RestController
-@RequestMapping("/api/v1/coupons")
+@RequestMapping("/api/v1")
 public class MockCouponController {
 
     /**
      * 사용 가능한 쿠폰 목록 조회
-     * GET /api/coupons
+     * GET /api/coupons/available
      */
-    @GetMapping
+    @GetMapping("/coupons/available")
     public Map<String, Object> getCoupons() {
         List<Map<String, Object>> activeCoupons = new ArrayList<>();
 
@@ -40,7 +40,7 @@ public class MockCouponController {
      * 쿠폰 상세 조회
      * GET /api/coupons/{code}
      */
-    @GetMapping("/{code}")
+    @GetMapping("/coupons/{code}")
     public Map<String, Object> getCoupon(@PathVariable String code) {
         Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
         if (coupon == null) {
@@ -51,13 +51,14 @@ public class MockCouponController {
 
     /**
      * 쿠폰 발급
-     * POST /api/coupons/{code}/issue
+     * POST /api/users/me/coupons
      */
-    @PostMapping("/{code}/issue")
+    @PostMapping("/users/me/coupons")
     public Map<String, Object> issueCoupon(
             @RequestHeader("X-User-Id") Long userId,
-            @PathVariable String code
+            @RequestBody Map<String, Object> request
     ) {
+        String code = (String) request.get("couponCode");
         // 1. 쿠폰 확인
         Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
         if (coupon == null) {
@@ -113,38 +114,40 @@ public class MockCouponController {
 
     /**
      * 내 쿠폰 목록 조회
-     * GET /api/coupons/my
+     * GET /api/users/me/coupons
      */
-    @GetMapping("/my")
+    @GetMapping("/users/me/coupons")
     public Map<String, Object> getMyCoupons(
             @RequestHeader("X-User-Id") Long userId,
-            @RequestParam(required = false, defaultValue = "false") boolean includeUsed
+            @RequestParam(required = false) Boolean isUsed
     ) {
         List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.getOrDefault(userId, new ArrayList<>());
         List<Map<String, Object>> result = new ArrayList<>();
 
         for (Map<String, Object> uc : userCoupons) {
-            boolean isUsed = (Boolean) uc.getOrDefault("isUsed", false);
+            boolean used = (Boolean) uc.getOrDefault("isUsed", false);
 
-            if (includeUsed || !isUsed) {
-                // 쿠폰 상세 정보 추가
-                String code = (String) uc.get("code");
-                Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
+            // isUsed 파라미터가 제공되면 필터링
+            if (isUsed != null && used != isUsed) {
+                continue;
+            }
 
-                if (coupon != null) {
-                    Map<String, Object> enriched = new HashMap<>(uc);
-                    enriched.put("discountType", coupon.get("discountType"));
-                    enriched.put("discountValue", coupon.get("discountValue"));
-                    enriched.put("minOrderAmount", coupon.get("minOrderAmount"));
-                    enriched.put("maxDiscountAmount", coupon.get("maxDiscountAmount"));
-                    result.add(enriched);
-                }
+            // 쿠폰 상세 정보 추가
+            String code = (String) uc.get("code");
+            Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
+
+            if (coupon != null) {
+                Map<String, Object> enriched = new HashMap<>(uc);
+                enriched.put("discountType", coupon.get("discountType"));
+                enriched.put("discountValue", coupon.get("discountValue"));
+                enriched.put("minOrderAmount", coupon.get("minOrderAmount"));
+                enriched.put("maxDiscountAmount", coupon.get("maxDiscountAmount"));
+                result.add(enriched);
             }
         }
 
         return Map.of(
-            "coupons", result,
-            "total", result.size()
+            "data", result
         );
     }
 }
