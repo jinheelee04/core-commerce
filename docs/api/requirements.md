@@ -1,9 +1,7 @@
 # 🧩 E-commerce Service Requirements Specification (core-commerce)
 
 > **과제 목표**  
-> 상품, 장바구니, 주문, 결제, 쿠폰, 재고 등  
-> 이커머스 서비스의 핵심 기능을 중심으로 RESTful API를 설계한다.  
-> Mock 결제 및 Redis 기반 쿠폰 시스템을 활용하여 결제/동시성 로직을 학습하고,
+> 상품, 장바구니, 주문, 결제, 쿠폰, 재고 등 이커머스 서비스의 핵심 기능을 중심으로 RESTful API를 설계한다.
 
 ---
 
@@ -14,7 +12,6 @@
 | U-01 | 주문 내역 조회 | 사용자가 주문한 내역을 상태별로 확인 |
 | U-02 | 쿠폰 조회 | 보유 쿠폰 목록 및 사용 여부 확인 |
 | U-03 | 결제 내역 조회 | 주문별 결제 상태 확인 |
-| U-04 | 알림 확인 | 결제 성공/취소/쿠폰 발급 등 알림 조회 |
 
 ---
 
@@ -117,7 +114,6 @@
 | RS-02 | 재고 확정 차감 | 결제 성공 시 `reserved_stock` 감소, `stock` 감소 |
 | RS-03 | 재고 예약 해제 | 결제 실패/취소 시 `reserved_stock` 감소 |
 | RS-04 | 재고 부족 검증 | `stock - reserved_stock < 주문수량` 시 주문 실패 |
-| RS-05 | 예약 타임아웃 | 결제 대기 15분 초과 시 예약 자동 해제 |
 
 ### 3️⃣ API 설계 표준
 | 항목 | 규칙 |
@@ -146,7 +142,6 @@
 | 쿠폰 중복 사용 | 400 Bad Request, "이미 사용된 쿠폰입니다" |
 | 쿠폰 중복 발급 | 409 Conflict |
 | 이미 취소된 주문 | 400 Bad Request |
-| 결제 타임아웃 | 15분 초과 시 자동 취소 |
 | 상품 미존재 | 404 Not Found |
 | 장바구니 항목 오류 | 400 Bad Request |
 
@@ -158,31 +153,6 @@
 | 결제 실패 | Payment + Order 취소 + 재고 해제 |
 | 장바구니 담기 | CartItem 생성/수정 |
 | 쿠폰 발급 | UserCoupon 생성 + Redis 카운트 감소 |
-
----
-
-## 🔁 주요 프로세스 플로우
-
-### 주문 생성
-1️⃣ 장바구니 검증  
-2️⃣ 재고 확인 (`stock - reserved_stock` 체크)  
-3️⃣ 재고 예약 (`reserved_stock` 증가)  
-4️⃣ 주문 생성 (status=`PENDING`)  
-5️⃣ 주문 ID, 총 금액, 상태 반환
-
-### 결제 처리
-1️⃣ 결제 요청(Mock Payment API)  
-2️⃣ 성공 → 주문 `PAID`, 재고 확정 차감, 쿠폰 사용  
-3️⃣ 실패 → 주문 `CANCELLED`, 예약 해제
-
-### 쿠폰 발급
-1️⃣ Redis로 중복 발급 확인 (`SISMEMBER user:coupon:{couponId} {userId}`)
-2️⃣ 수량 체크 (`GET coupon:{id}:count`)
-3️⃣ MULTI/EXEC 트랜잭션으로 원자적 발급
-   - `SADD user:coupon:{couponId} {userId}`
-   - `DECR coupon:{id}:count`
-4️⃣ DB 저장 → UserCoupon 생성
-5️⃣ 중복 발급 또는 수량 초과 시 409 반환
 
 ---
 
