@@ -583,12 +583,13 @@ X-User-Id: 123
 
 ### 4. 주문 취소
 
-**Endpoint**: `POST /orders/{orderId}/cancel`
+**Endpoint**: `PATCH /orders/{orderId}`
 
-**Request Body (선택사항)**
+**Request Body**
 ```json
 {
-  "reason": "단순 변심"
+  "status": "CANCELLED",
+  "cancelReason": "단순 변심"
 }
 ```
 
@@ -599,7 +600,7 @@ X-User-Id: 123
     "orderId": 456,
     "status": "CANCELLED",
     "cancelledAt": "2025-01-28T11:00:00Z",
-    "reason": "단순 변심"
+    "cancelReason": "단순 변심"
   }
 }
 ```
@@ -817,13 +818,17 @@ X-User-Id: 123
 
 ### 1. 쿠폰 발급 (선착순)
 
-**Endpoint**: `POST /coupons/{couponId}/issue`
+**Endpoint**: `POST /users/me/coupons`
 
-**Path Parameters**
+**Request Body**
+```json
+{
+  "couponId": 10
+}
+```
 
-| 파라미터 | 타입 | 설명 |
-|---------|------|------|
-| `couponId` | integer | 쿠폰 ID |
+**Validation Rules**
+- `couponId`: 필수, 양의 정수
 
 **Response 201 Created**
 ```json
