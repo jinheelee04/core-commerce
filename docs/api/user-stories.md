@@ -85,7 +85,6 @@
 - [ ] 상품 ID와 수량을 지정하여 장바구니에 추가
 - [ ] 동일 상품 추가 시 수량 증가
 - [ ] 품절 상품 추가 시 400 에러 반환
-- [ ] 재고보다 많은 수량 추가 시 409 에러 반환 ("재고가 부족합니다")
 - [ ] 수량은 1 이상이어야 함
 
 **Example Request:**
@@ -137,7 +136,7 @@
 
 **Acceptance Criteria:**
 - [ ] 장바구니 항목 ID로 수량 변경
-- [ ] 수량을 0으로 변경 시 항목 삭제
+- [ ] 수량은 1 이상이어야 함
 - [ ] 재고보다 많은 수량 변경 시 409 에러 반환
 - [ ] 존재하지 않는 항목 수정 시 404 에러 반환
 
@@ -383,22 +382,7 @@
 
 ---
 
-## 5️⃣ 재고 관리 (Inventory Management)
-
-### US-INV-01: 재고 예약 타임아웃
-**As a** System
-**I want** to automatically release expired stock reservations
-**So that** inventory doesn't remain locked indefinitely
-
-**Acceptance Criteria:**
-- [ ] 결제 대기 15분 초과 시 예약 자동 해제
-- [ ] `reservedStock` 감소
-- [ ] 해당 주문 자동 취소 (`CANCELLED`)
-- [ ] 스케줄러로 주기적 검사 (예: 1분마다)
-
----
-
-## 6️⃣ 쿠폰 시스템 (Coupon)
+## 5️⃣  쿠폰 시스템 (Coupon)
 
 ### US-CPN-01: 쿠폰 발급 (선착순)
 **As a** Customer
@@ -409,19 +393,9 @@
 - [ ] 쿠폰 ID로 발급 요청
 - [ ] 1인 1매 제한 (중복 발급 시 409 에러)
 - [ ] 선착순으로 수량 제한 (수량 소진 시 409 에러)
-- [ ] Redis 기반 동시성 제어 (MULTI/EXEC 트랜잭션) - 권장
+- [ ] 동시성 제어 
 - [ ] DB에 UserCoupon 레코드 생성
 - [ ] 만료된 쿠폰 발급 시도 시 400 에러 반환
-
-**동시성 제어 (Redis - 권장 방식):**
-```
-1. SISMEMBER user:coupon:{couponId} {userId} (중복 확인)
-2. GET coupon:{couponId}:count (수량 확인)
-3. MULTI
-4. SADD user:coupon:{couponId} {userId}
-5. DECR coupon:{couponId}:count
-6. EXEC
-```
 
 ---
 
@@ -472,38 +446,6 @@
 
 ---
 
-## 7️⃣ 사용자 (User)
-
-### US-U-01: 알림 조회
-**As a** Customer
-**I want** to view notifications about my orders and coupons
-**So that** I can stay informed about important updates
-
-**Acceptance Criteria:**
-- [ ] 사용자별 알림 목록 조회
-- [ ] 알림 타입별 필터링 (`ORDER`, `PAYMENT`, `COUPON`)
-- [ ] 읽음/안읽음 상태 관리
-- [ ] 최신 알림이 먼저 표시
-- [ ] 알림 내용: "결제가 완료되었습니다", "쿠폰이 발급되었습니다" 등
-
-**Example Response:**
-```json
-{
-  "data": [
-    {
-      "notificationId": 1,
-      "type": "PAYMENT",
-      "title": "결제 완료",
-      "message": "주문번호 456의 결제가 완료되었습니다.",
-      "isRead": false,
-      "createdAt": "2025-01-15T10:35:00Z"
-    }
-  ]
-}
-```
-
----
-
 ## 🎯 E2E 시나리오
 
 ### US-E2E-01: 완전한 구매 플로우
@@ -521,7 +463,6 @@
 7. 결제 진행 (US-PMT-01)
 8. 결제 성공 (US-PMT-02) → 재고 확정 차감 + 쿠폰 사용 처리 (US-CPN-03)
 9. 주문 확인 (US-O-02)
-10. 알림 확인 (US-U-01)
 
 **Acceptance Criteria:**
 - [ ] 전체 플로우가 3분 이내에 완료
