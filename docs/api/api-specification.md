@@ -15,9 +15,8 @@
 3. [장바구니 API](#장바구니-api)
 4. [주문 API](#주문-api)
 5. [결제 API](#결제-api)
-6. [재고 API](#재고-api)
-7. [쿠폰 API](#쿠폰-api)
-8. [에러 응답](#에러-응답)
+6. [쿠폰 API](#쿠폰-api)
+7. [에러 응답](#에러-응답)
 
 ---
 
@@ -175,7 +174,7 @@ X-User-Id: 123
         "quantity": 2,
         "subtotal": 5000000,
         "availableStock": 10,
-        "addedAt": "2025-01-25T09:00:00Z"
+        "createdAt": "2025-01-25T09:00:00Z"
       }
     ],
     "totalQuantity": 2,
@@ -225,7 +224,7 @@ X-User-Id: 123
     "productName": "MacBook Pro",
     "quantity": 2,
     "subtotal": 5000000,
-    "addedAt": "2025-01-25T09:00:00Z"
+    "createdAt": "2025-01-25T09:00:00Z"
   }
 }
 ```
@@ -526,8 +525,8 @@ X-User-Id: 123
 | 파라미터 | 타입 | 필수 | 설명 |
 |---------|------|-----|------|
 | `status` | string | N | 주문 상태 필터 (`PENDING`, `PAID`, `CONFIRMED`, `CANCELLED`) |
-| `startDate` | string | N | 시작 날짜 (ISO 8601) |
-| `endDate` | string | N | 종료 날짜 (ISO 8601) |
+| `startsAt` | string | N | 시작 날짜 (ISO 8601) |
+| `endsAt` | string | N | 종료 날짜 (ISO 8601) |
 | `page` | integer | N | 페이지 번호 |
 | `size` | integer | N | 페이지 크기 |
 | `sort` | string | N | 정렬 기준 (기본: `createdAt,desc`) |
@@ -889,8 +888,8 @@ X-User-Id: 123
       "maxDiscountAmount": 20000,
       "totalQuantity": 1000,
       "remainingQuantity": 342,
-      "startDate": "2025-01-01T00:00:00Z",
-      "endDate": "2025-12-31T23:59:59Z",
+      "startsAt": "2025-01-01T00:00:00Z",
+      "endsAt": "2025-12-31T23:59:59Z",
       "status": "ACTIVE"
     }
   ]

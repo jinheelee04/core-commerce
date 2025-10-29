@@ -6,7 +6,7 @@
 
 1. [Entity Relationship Diagram](#entity-relationship-diagram)
 2. [엔티티 상세 정의](#엔티티-상세-정의)
-e
+
 ---
 
 ## Entity Relationship Diagram
@@ -15,7 +15,7 @@ e
 
 ```mermaid
 erDiagram
-    USER ||--o{ CART : has
+    USER ||--o| CART : has
     USER ||--o{ ORDER : places
     USER ||--o{ USER_COUPON : owns
 
@@ -35,6 +35,7 @@ erDiagram
         bigint user_id PK
         string email UK
         string name
+        string phone
         timestamp created_at
         timestamp updated_at
     }
@@ -43,7 +44,7 @@ erDiagram
         bigint product_id PK
         string name
         text description
-        decimal price
+        bigint price
         string category
         string brand
         string image_url
@@ -64,7 +65,7 @@ erDiagram
         bigint cart_id FK
         bigint product_id FK
         int quantity
-        timestamp added_at
+        timestamp created_at
         timestamp updated_at
     }
 
@@ -94,6 +95,7 @@ erDiagram
         bigint unit_price
         bigint subtotal
         timestamp created_at
+        timestamp updated_at
     }
 
     PAYMENT {
@@ -107,6 +109,7 @@ erDiagram
         timestamp paid_at
         timestamp failed_at
         timestamp created_at
+        timestamp updated_at
     }
 
     COUPON {
@@ -120,8 +123,8 @@ erDiagram
         bigint max_discount_amount
         int total_quantity
         int remaining_quantity
-        timestamp start_date
-        timestamp end_date
+        timestamp starts_at
+        timestamp ends_at
         string status
         timestamp created_at
         timestamp updated_at
@@ -136,6 +139,7 @@ erDiagram
         timestamp issued_at
         timestamp used_at
         timestamp expires_at
+        timestamp updated_at
     }
 
     INVENTORY {
@@ -144,6 +148,7 @@ erDiagram
         int stock
         int reserved_stock
         int low_stock_threshold
+        timestamp created_at
         timestamp updated_at
     }
 
@@ -181,7 +186,7 @@ erDiagram
 | `product_id` | BIGINT | NO | AUTO_INCREMENT | 상품 ID (PK) |
 | `name` | VARCHAR(255) | NO | - | 상품명 |
 | `description` | TEXT | YES | - | 상품 설명 |
-| `price` | DECIMAL(12,0) | NO | - | 가격 (원 단위) |
+| `price` | BIGINT | NO | - | 가격 (원 단위) |
 | `category` | VARCHAR(50) | NO | - | 카테고리 |
 | `brand` | VARCHAR(100) | YES | - | 브랜드 |
 | `image_url` | VARCHAR(500) | YES | - | 이미지 URL |
@@ -213,7 +218,7 @@ erDiagram
 - PRIMARY KEY: `cart_id`
 - UNIQUE KEY: `user_id` (1 사용자 = 1 장바구니)
 
----
+---USER_COUPON
 
 ### 4. CartItem (장바구니 항목)
 
@@ -225,7 +230,7 @@ erDiagram
 | `cart_id` | BIGINT | NO | - | 장바구니 ID (FK) |
 | `product_id` | BIGINT | NO | - | 상품 ID (FK) |
 | `quantity` | INT | NO | 1 | 수량 |
-| `added_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 추가일시 |
+| `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
@@ -287,6 +292,7 @@ erDiagram
 | `unit_price` | BIGINT | NO | - | 단가 (주문 시점 가격) |
 | `subtotal` | BIGINT | NO | - | 소계 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
 - PRIMARY KEY: `order_item_id`
@@ -309,6 +315,7 @@ erDiagram
 | `paid_at` | TIMESTAMP | YES | - | 결제 완료 시간 |
 | `failed_at` | TIMESTAMP | YES | - | 결제 실패 시간 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
 - PRIMARY KEY: `payment_id`
@@ -341,8 +348,8 @@ erDiagram
 | `max_discount_amount` | BIGINT | YES | - | 최대 할인 금액 |
 | `total_quantity` | INT | NO | - | 총 발급 수량 |
 | `remaining_quantity` | INT | NO | - | 잔여 수량 |
-| `start_date` | TIMESTAMP | NO | - | 시작일 |
-| `end_date` | TIMESTAMP | NO | - | 종료일 |
+| `starts_at` | TIMESTAMP | NO | - | 시작일시 |
+| `ends_at` | TIMESTAMP | NO | - | 종료일시 |
 | `status` | VARCHAR(20) | NO | 'ACTIVE' | 쿠폰 상태 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
@@ -376,6 +383,7 @@ erDiagram
 | `issued_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 발급일시 |
 | `used_at` | TIMESTAMP | YES | - | 사용일시 |
 | `expires_at` | TIMESTAMP | NO | - | 만료일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
 - PRIMARY KEY: `user_coupon_id`
@@ -394,6 +402,7 @@ erDiagram
 | `stock` | INT | NO | 0 | 현재 재고 |
 | `reserved_stock` | INT | NO | 0 | 예약 재고 |
 | `low_stock_threshold` | INT | NO | 10 | 낮은 재고 기준 |
+| `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
