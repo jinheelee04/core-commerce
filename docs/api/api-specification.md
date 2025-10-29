@@ -146,7 +146,7 @@ X-User-Id: 123
 **Response 404 Not Found**
 ```json
 {
-  "error": "PRODUCT_NOT_FOUND",
+  "code": "PRODUCT_NOT_FOUND",
   "message": "상품을 찾을 수 없습니다"
 }
 ```
@@ -233,21 +233,8 @@ X-User-Id: 123
 **Response 400 Bad Request (품절 상품)**
 ```json
 {
-  "error": "PRODUCT_OUT_OF_STOCK",
+  "code": "PRODUCT_OUT_OF_STOCK",
   "message": "품절된 상품입니다"
-}
-```
-
-**Response 409 Conflict (재고 부족)**
-```json
-{
-  "error": "INSUFFICIENT_STOCK",
-  "message": "재고가 부족합니다",
-  "details": {
-    "productId": 1,
-    "requestedQuantity": 10,
-    "availableStock": 8
-  }
 }
 ```
 
@@ -269,6 +256,8 @@ X-User-Id: 123
   "quantity": 3
 }
 ```
+**Validation Rules**
+- `quantity`: 필수, 1 이상
 
 **Response 200 OK**
 ```json
@@ -286,24 +275,10 @@ X-User-Id: 123
 **Response 404 Not Found**
 ```json
 {
-  "error": "CART_ITEM_NOT_FOUND",
+  "code": "CART_ITEM_NOT_FOUND",
   "message": "장바구니 항목을 찾을 수 없습니다"
 }
 ```
-
-**Response 409 Conflict (재고 부족)**
-```json
-{
-  "error": "INSUFFICIENT_STOCK",
-  "message": "재고가 부족합니다",
-  "details": {
-    "requestedQuantity": 10,
-    "availableStock": 5
-  }
-}
-```
-
-**Note**: 수량을 0으로 설정 시 항목 자동 삭제
 
 ---
 
@@ -316,7 +291,7 @@ X-User-Id: 123
 **Response 404 Not Found**
 ```json
 {
-  "error": "CART_ITEM_NOT_FOUND",
+  "code": "CART_ITEM_NOT_FOUND",
   "message": "장바구니 항목을 찾을 수 없습니다"
 }
 ```
@@ -402,7 +377,7 @@ X-User-Id: 123
 **Response 400 Bad Request (빈 장바구니)**
 ```json
 {
-  "error": "EMPTY_CART",
+  "code": "EMPTY_CART",
   "message": "장바구니가 비어있습니다"
 }
 ```
@@ -410,7 +385,7 @@ X-User-Id: 123
 **Response 409 Conflict (재고 부족)**
 ```json
 {
-  "error": "INSUFFICIENT_STOCK",
+  "code": "INSUFFICIENT_STOCK",
   "message": "재고가 부족합니다",
   "details": {
     "insufficientItems": [
@@ -428,7 +403,7 @@ X-User-Id: 123
 **Response 400 Bad Request (쿠폰 만료)**
 ```json
 {
-  "error": "COUPON_EXPIRED",
+  "code": "COUPON_EXPIRED",
   "message": "만료된 쿠폰입니다",
   "details": {
     "couponId": 10,
@@ -440,7 +415,7 @@ X-User-Id: 123
 **Response 400 Bad Request (쿠폰 이미 사용됨)**
 ```json
 {
-  "error": "COUPON_ALREADY_USED",
+  "code": "COUPON_ALREADY_USED",
   "message": "이미 사용된 쿠폰입니다",
   "details": {
     "couponId": 10,
@@ -452,7 +427,7 @@ X-User-Id: 123
 **Response 400 Bad Request (최소 주문 금액 미달)**
 ```json
 {
-  "error": "COUPON_MIN_ORDER_AMOUNT_NOT_MET",
+  "code": "COUPON_MIN_ORDER_AMOUNT_NOT_MET",
   "message": "쿠폰 사용을 위한 최소 주문 금액을 충족하지 못했습니다",
   "details": {
     "couponId": 10,
@@ -465,7 +440,7 @@ X-User-Id: 123
 **Response 404 Not Found (쿠폰 없음)**
 ```json
 {
-  "error": "COUPON_NOT_FOUND",
+  "code": "COUPON_NOT_FOUND",
   "message": "쿠폰을 찾을 수 없거나 사용자에게 발급되지 않은 쿠폰입니다"
 }
 ```
@@ -527,7 +502,7 @@ X-User-Id: 123
 **Response 404 Not Found**
 ```json
 {
-  "error": "ORDER_NOT_FOUND",
+  "code": "ORDER_NOT_FOUND",
   "message": "주문을 찾을 수 없습니다"
 }
 ```
@@ -535,7 +510,7 @@ X-User-Id: 123
 **Response 403 Forbidden**
 ```json
 {
-  "error": "FORBIDDEN",
+  "code": "FORBIDDEN",
   "message": "다른 사용자의 주문에 접근할 수 없습니다"
 }
 ```
@@ -608,7 +583,7 @@ X-User-Id: 123
 **Response 400 Bad Request (이미 결제됨)**
 ```json
 {
-  "error": "ORDER_ALREADY_PAID",
+  "code": "ORDER_ALREADY_PAID",
   "message": "이미 결제된 주문은 취소할 수 없습니다",
   "details": {
     "orderId": 456,
@@ -621,7 +596,7 @@ X-User-Id: 123
 **Response 400 Bad Request (이미 취소됨)**
 ```json
 {
-  "error": "ORDER_ALREADY_CANCELLED",
+  "code": "ORDER_ALREADY_CANCELLED",
   "message": "이미 취소된 주문입니다"
 }
 ```
@@ -676,7 +651,7 @@ X-User-Id: 123
 **Response 400 Bad Request (주문 상태 오류)**
 ```json
 {
-  "error": "INVALID_ORDER_STATUS",
+  "code": "INVALID_ORDER_STATUS",
   "message": "결제 대기 상태의 주문만 결제할 수 있습니다",
   "details": {
     "orderId": 456,
@@ -688,7 +663,7 @@ X-User-Id: 123
 **Response 400 Bad Request (금액 불일치)**
 ```json
 {
-  "error": "PAYMENT_AMOUNT_MISMATCH",
+  "code": "PAYMENT_AMOUNT_MISMATCH",
   "message": "결제 금액이 주문 금액과 일치하지 않습니다",
   "details": {
     "expectedAmount": 4500000,
@@ -700,7 +675,7 @@ X-User-Id: 123
 **Response 400 Bad Request (결제 실패)**
 ```json
 {
-  "error": "PAYMENT_FAILED",
+  "code": "PAYMENT_FAILED",
   "message": "결제에 실패했습니다",
   "details": {
     "paymentId": 789,
@@ -716,7 +691,7 @@ X-User-Id: 123
 **Response 408 Request Timeout**
 ```json
 {
-  "error": "PAYMENT_TIMEOUT",
+  "code": "PAYMENT_TIMEOUT",
   "message": "결제 처리 시간이 초과되었습니다"
 }
 ```
@@ -754,7 +729,7 @@ X-User-Id: 123
 **Response 404 Not Found**
 ```json
 {
-  "error": "PAYMENT_NOT_FOUND",
+  "code": "PAYMENT_NOT_FOUND",
   "message": "결제 정보를 찾을 수 없습니다"
 }
 ```
@@ -782,33 +757,8 @@ X-User-Id: 123
 **Response 404 Not Found (결제 내역 없음)**
 ```json
 {
-  "error": "PAYMENT_NOT_FOUND",
+  "code": "PAYMENT_NOT_FOUND",
   "message": "해당 주문의 결제 내역이 없습니다"
-}
-```
-
----
-
-## 재고 API
-
-### 1. 재고 조회 (관리자)
-
-**Endpoint**: `GET /inventory/{productId}`
-
-**Response 200 OK**
-```json
-{
-  "data": {
-    "productId": 1,
-    "productName": "MacBook Pro",
-    "stock": 10,
-    "reservedStock": 3,
-    "availableStock": 7,
-    "status": "AVAILABLE",
-    "lowStockThreshold": 5,
-    "isLowStock": false,
-    "updatedAt": "2025-01-28T10:00:00Z"
-  }
 }
 ```
 
@@ -852,7 +802,7 @@ X-User-Id: 123
 **Response 409 Conflict (중복 발급)**
 ```json
 {
-  "error": "COUPON_ALREADY_ISSUED",
+  "code": "COUPON_ALREADY_ISSUED",
   "message": "이미 발급받은 쿠폰입니다",
   "details": {
     "couponId": 10,
@@ -864,7 +814,7 @@ X-User-Id: 123
 **Response 409 Conflict (수량 소진)**
 ```json
 {
-  "error": "COUPON_EXHAUSTED",
+  "code": "COUPON_EXHAUSTED",
   "message": "쿠폰이 모두 소진되었습니다"
 }
 ```
@@ -872,7 +822,7 @@ X-User-Id: 123
 **Response 400 Bad Request (만료된 쿠폰)**
 ```json
 {
-  "error": "COUPON_EXPIRED",
+  "code": "COUPON_EXPIRED",
   "message": "만료된 쿠폰입니다",
   "details": {
     "expiresAt": "2025-01-27T23:59:59Z"
@@ -955,7 +905,7 @@ X-User-Id: 123
 
 ```json
 {
-  "error": "ERROR_CODE",
+  "code": "ERROR_CODE",
   "message": "사용자 친화적인 에러 메시지",
   "details": {
     "field": "추가 정보"
@@ -996,7 +946,7 @@ X-User-Id: 123
 
 ```json
 {
-  "error": "VALIDATION_ERROR",
+  "code": "VALIDATION_ERROR",
   "message": "입력 값 검증에 실패했습니다",
   "details": {
     "fields": [
