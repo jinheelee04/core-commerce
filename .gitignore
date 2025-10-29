@@ -1,81 +1,37 @@
-# Dependencies
-node_modules/
-/.pnp
-.pnp.js
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-# Testing
-/coverage
-*.log
-
-# Build outputs
-/dist
-/build
-/out
-*.class
-target/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-*.cache
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Redis
-dump.rdb
-
-# Java/Spring Boot
-*.jar
-!gradle-wrapper.jar
-.gradle/
-.settings/
+### STS ###
+.apt_generated
 .classpath
+.factorypath
 .project
+.settings
+.springBeans
+.sts4-cache
 bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
-# Python (if used for mock services)
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-venv/
-ENV/
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
-# Docker
-docker-compose.override.yml
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
 
-# Secrets
-secrets/
-*.pem
-*.key
-credentials.json
+### VS Code ###
+.vscode/
