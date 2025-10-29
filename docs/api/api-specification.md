@@ -147,8 +147,7 @@ X-User-Id: 123
 ```json
 {
   "error": "PRODUCT_NOT_FOUND",
-  "message": "상품을 찾을 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "상품을 찾을 수 없습니다"
 }
 ```
 
@@ -235,8 +234,7 @@ X-User-Id: 123
 ```json
 {
   "error": "PRODUCT_OUT_OF_STOCK",
-  "message": "품절된 상품입니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "품절된 상품입니다"
 }
 ```
 
@@ -245,7 +243,6 @@ X-User-Id: 123
 {
   "error": "INSUFFICIENT_STOCK",
   "message": "재고가 부족합니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "productId": 1,
     "requestedQuantity": 10,
@@ -290,8 +287,7 @@ X-User-Id: 123
 ```json
 {
   "error": "CART_ITEM_NOT_FOUND",
-  "message": "장바구니 항목을 찾을 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "장바구니 항목을 찾을 수 없습니다"
 }
 ```
 
@@ -300,7 +296,6 @@ X-User-Id: 123
 {
   "error": "INSUFFICIENT_STOCK",
   "message": "재고가 부족합니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "requestedQuantity": 10,
     "availableStock": 5
@@ -322,8 +317,7 @@ X-User-Id: 123
 ```json
 {
   "error": "CART_ITEM_NOT_FOUND",
-  "message": "장바구니 항목을 찾을 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "장바구니 항목을 찾을 수 없습니다"
 }
 ```
 
@@ -346,7 +340,6 @@ X-User-Id: 123
 **Request Body (쿠폰 미사용)**
 ```json
 {
-  "userId": 123,
   "cartItemIds": [1, 2, 3],
   "deliveryAddress": "서울시 강남구 테헤란로 123",
   "deliveryMemo": "문 앞에 놔주세요"
@@ -356,13 +349,20 @@ X-User-Id: 123
 **Request Body (쿠폰 사용)**
 ```json
 {
-  "userId": 123,
   "cartItemIds": [1, 2, 3],
   "couponId": 10,
   "deliveryAddress": "서울시 강남구 테헤란로 123",
   "deliveryMemo": "문 앞에 놔주세요"
 }
 ```
+
+**Validation Rules**
+- `cartItemIds`: 필수, 1개 이상의 장바구니 항목 ID
+- `couponId`: 선택, 사용할 쿠폰 ID
+- `deliveryAddress`: 필수, 배송 주소
+- `deliveryMemo`: 선택, 배송 메모
+
+**Note**: 사용자 정보는 인증 헤더(`X-User-Id`)에서 추출
 
 **Response 201 Created**
 ```json
@@ -403,8 +403,7 @@ X-User-Id: 123
 ```json
 {
   "error": "EMPTY_CART",
-  "message": "장바구니가 비어있습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "장바구니가 비어있습니다"
 }
 ```
 
@@ -413,7 +412,6 @@ X-User-Id: 123
 {
   "error": "INSUFFICIENT_STOCK",
   "message": "재고가 부족합니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "insufficientItems": [
       {
@@ -424,6 +422,51 @@ X-User-Id: 123
       }
     ]
   }
+}
+```
+
+**Response 400 Bad Request (쿠폰 만료)**
+```json
+{
+  "error": "COUPON_EXPIRED",
+  "message": "만료된 쿠폰입니다",
+  "details": {
+    "couponId": 10,
+    "expiresAt": "2025-01-27T23:59:59Z"
+  }
+}
+```
+
+**Response 400 Bad Request (쿠폰 이미 사용됨)**
+```json
+{
+  "error": "COUPON_ALREADY_USED",
+  "message": "이미 사용된 쿠폰입니다",
+  "details": {
+    "couponId": 10,
+    "usedAt": "2025-01-20T10:00:00Z"
+  }
+}
+```
+
+**Response 400 Bad Request (최소 주문 금액 미달)**
+```json
+{
+  "error": "COUPON_MIN_ORDER_AMOUNT_NOT_MET",
+  "message": "쿠폰 사용을 위한 최소 주문 금액을 충족하지 못했습니다",
+  "details": {
+    "couponId": 10,
+    "minOrderAmount": 50000,
+    "currentAmount": 30000
+  }
+}
+```
+
+**Response 404 Not Found (쿠폰 없음)**
+```json
+{
+  "error": "COUPON_NOT_FOUND",
+  "message": "쿠폰을 찾을 수 없거나 사용자에게 발급되지 않은 쿠폰입니다"
 }
 ```
 
@@ -485,8 +528,7 @@ X-User-Id: 123
 ```json
 {
   "error": "ORDER_NOT_FOUND",
-  "message": "주문을 찾을 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "주문을 찾을 수 없습니다"
 }
 ```
 
@@ -494,8 +536,7 @@ X-User-Id: 123
 ```json
 {
   "error": "FORBIDDEN",
-  "message": "다른 사용자의 주문에 접근할 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "다른 사용자의 주문에 접근할 수 없습니다"
 }
 ```
 
@@ -568,7 +609,6 @@ X-User-Id: 123
 {
   "error": "ORDER_ALREADY_PAID",
   "message": "이미 결제된 주문은 취소할 수 없습니다",
-  "timestamp": "2025-01-28T11:00:00Z",
   "details": {
     "orderId": 456,
     "status": "PAID",
@@ -581,8 +621,7 @@ X-User-Id: 123
 ```json
 {
   "error": "ORDER_ALREADY_CANCELLED",
-  "message": "이미 취소된 주문입니다",
-  "timestamp": "2025-01-28T11:00:00Z"
+  "message": "이미 취소된 주문입니다"
 }
 ```
 
@@ -610,6 +649,14 @@ X-User-Id: 123
 }
 ```
 
+**Validation Rules**
+- `orderId`: 필수, 양의 정수
+- `paymentMethod`: 필수, `CARD`, `VIRTUAL_ACCOUNT`, `BANK_TRANSFER` 중 하나
+- `amount`: 필수, 주문의 최종 금액과 일치해야 함 (검증용)
+- `cardInfo`: 결제 수단이 `CARD`일 경우 필수
+
+**Note**: 쿠폰 할인은 주문 생성 시 이미 적용되어 `finalAmount`에 반영됨. 결제 시에는 주문의 최종 금액을 그대로 사용.
+
 **Response 201 Created**
 ```json
 {
@@ -630,7 +677,6 @@ X-User-Id: 123
 {
   "error": "INVALID_ORDER_STATUS",
   "message": "결제 대기 상태의 주문만 결제할 수 있습니다",
-  "timestamp": "2025-01-28T10:05:00Z",
   "details": {
     "orderId": 456,
     "currentStatus": "PAID"
@@ -643,7 +689,6 @@ X-User-Id: 123
 {
   "error": "PAYMENT_AMOUNT_MISMATCH",
   "message": "결제 금액이 주문 금액과 일치하지 않습니다",
-  "timestamp": "2025-01-28T10:05:00Z",
   "details": {
     "expectedAmount": 4500000,
     "requestedAmount": 5000000
@@ -656,7 +701,6 @@ X-User-Id: 123
 {
   "error": "PAYMENT_FAILED",
   "message": "결제에 실패했습니다",
-  "timestamp": "2025-01-28T10:05:00Z",
   "details": {
     "paymentId": 789,
     "failReason": "카드 한도 초과",
@@ -672,8 +716,7 @@ X-User-Id: 123
 ```json
 {
   "error": "PAYMENT_TIMEOUT",
-  "message": "결제 처리 시간이 초과되었습니다",
-  "timestamp": "2025-01-28T10:05:00Z"
+  "message": "결제 처리 시간이 초과되었습니다"
 }
 ```
 
@@ -711,8 +754,7 @@ X-User-Id: 123
 ```json
 {
   "error": "PAYMENT_NOT_FOUND",
-  "message": "결제 정보를 찾을 수 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "결제 정보를 찾을 수 없습니다"
 }
 ```
 
@@ -740,8 +782,7 @@ X-User-Id: 123
 ```json
 {
   "error": "PAYMENT_NOT_FOUND",
-  "message": "해당 주문의 결제 내역이 없습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "해당 주문의 결제 내역이 없습니다"
 }
 ```
 
@@ -808,7 +849,6 @@ X-User-Id: 123
 {
   "error": "COUPON_ALREADY_ISSUED",
   "message": "이미 발급받은 쿠폰입니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "couponId": 10,
     "issuedAt": "2025-01-20T10:00:00Z"
@@ -820,8 +860,7 @@ X-User-Id: 123
 ```json
 {
   "error": "COUPON_EXHAUSTED",
-  "message": "쿠폰이 모두 소진되었습니다",
-  "timestamp": "2025-01-28T10:00:00Z"
+  "message": "쿠폰이 모두 소진되었습니다"
 }
 ```
 
@@ -830,7 +869,6 @@ X-User-Id: 123
 {
   "error": "COUPON_EXPIRED",
   "message": "만료된 쿠폰입니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "expiresAt": "2025-01-27T23:59:59Z"
   }
@@ -914,8 +952,6 @@ X-User-Id: 123
 {
   "error": "ERROR_CODE",
   "message": "사용자 친화적인 에러 메시지",
-  "timestamp": "2025-01-28T10:00:00Z",
-  "path": "/api/v1/orders",
   "details": {
     "field": "추가 정보"
   }
@@ -957,7 +993,6 @@ X-User-Id: 123
 {
   "error": "VALIDATION_ERROR",
   "message": "입력 값 검증에 실패했습니다",
-  "timestamp": "2025-01-28T10:00:00Z",
   "details": {
     "fields": [
       {
