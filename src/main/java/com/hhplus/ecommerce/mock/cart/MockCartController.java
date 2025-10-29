@@ -15,9 +15,9 @@ public class MockCartController {
 
     /**
      * 장바구니 조회
-     * GET /api/carts
+     * GET /api/carts/me
      */
-    @GetMapping
+    @GetMapping("/me")
     public Map<String, Object> getCart(@RequestHeader("X-User-Id") Long userId) {
         List<Map<String, Object>> cartItems = InMemoryDataStore.CARTS.getOrDefault(userId, new ArrayList<>());
 
@@ -126,9 +126,9 @@ public class MockCartController {
 
     /**
      * 장바구니 아이템 수량 변경
-     * PUT /api/carts/items/{cartItemId}
+     * PATCH /api/carts/items/{cartItemId}
      */
-    @PutMapping("/items/{cartItemId}")
+    @PatchMapping("/items/{cartItemId}")
     public Map<String, Object> updateCartItem(
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long cartItemId,
@@ -192,9 +192,9 @@ public class MockCartController {
 
     /**
      * 장바구니 전체 비우기
-     * DELETE /api/carts
+     * DELETE /api/carts/items
      */
-    @DeleteMapping
+    @DeleteMapping("/items")
     public Map<String, Object> clearCart(@RequestHeader("X-User-Id") Long userId) {
         InMemoryDataStore.CARTS.remove(userId);
         return Map.of("message", "장바구니가 비워졌습니다");
