@@ -15,54 +15,48 @@ public class MockCouponController {
 
     /**
      * 사용 가능한 쿠폰 목록 조회
-     * GET /api/coupons/available
      */
     @GetMapping("/coupons/available")
-    public Map<String, Object> getCoupons() {
+    public Map<String, Object> getCoupons( @RequestHeader("X-User-Id") Long userId,
+                                           @RequestParam(required = false) Long orderAmount) {
         List<Map<String, Object>> activeCoupons = new ArrayList<>();
-
+        List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.computeIfAbsent(
+                userId, k -> new ArrayList<>()
+        );
         for (Map<String, Object> coupon : InMemoryDataStore.COUPONS.values()) {
-            if ("ACTIVE".equals(coupon.get("status"))) {
-                int remaining = (int) coupon.get("remainingQuantity");
-                if (remaining > 0) {
-                    activeCoupons.add(coupon);
-                }
+            if (!"ACTIVE".equals(coupon.get("status"))) continue;
+            if(orderAmount != null){
+                Long minOrderAmount = (Long) coupon.get("minOrderAmount");
+                if(orderAmount < minOrderAmount) continue;
             }
+
+            int remaining = ((Number) coupon.get("remainingQuantity")).intValue();
+            if (remaining <= 0) continue;
+
+            boolean isIssued = userCoupons.stream().anyMatch(uc -> uc.get("couponId").equals(coupon.get("couponId")));
+
+            if(!isIssued) activeCoupons.add(coupon);
         }
 
         return Map.of(
-            "coupons", activeCoupons,
-            "total", activeCoupons.size()
+                "data", activeCoupons
         );
     }
 
     /**
-     * 쿠폰 상세 조회
-     * GET /api/coupons/{code}
-     */
-    @GetMapping("/coupons/{code}")
-    public Map<String, Object> getCoupon(@PathVariable String code) {
-        Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
-        if (coupon == null) {
-            return Map.of("error", "쿠폰을 찾을 수 없습니다");
-        }
-        return coupon;
-    }
-
-    /**
      * 쿠폰 발급
-     * POST /api/users/me/coupons
      */
     @PostMapping("/users/me/coupons")
     public Map<String, Object> issueCoupon(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody Map<String, Object> request
     ) {
-        String code = (String) request.get("couponCode");
+        Long couponId = Long.parseLong(request.get("couponId").toString());
         // 1. 쿠폰 확인
-        Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
+        Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponId);
         if (coupon == null) {
-            return Map.of("error", "쿠폰을 찾을 수 없습니다");
+            return Map.of("code", "COUPON_NOT_FOUND",
+                    "message", "쿠폰을 찾을 수 없습니다");
         }
 
         if (!"ACTIVE".equals(coupon.get("status"))) {
@@ -73,7 +67,8 @@ public class MockCouponController {
         synchronized (coupon) {
             int remaining = (int) coupon.get("remainingQuantity");
             if (remaining <= 0) {
-                return Map.of("error", "쿠폰이 모두 소진되었습니다");
+                return Map.of("code", "COUPON_EXHAUSTED"
+                        ,"error", "쿠폰이 모두 소진되었습니다");
             }
 
             // 3. 중복 발급 확인 (1인 1매 제한)
@@ -82,39 +77,70 @@ public class MockCouponController {
             );
 
             for (Map<String, Object> uc : userCoupons) {
-                if (code.equals(uc.get("code"))) {
-                    return Map.of("error", "이미 발급받은 쿠폰입니다");
+                if (couponId.equals(uc.get("couponId"))) {
+                    return Map.of(
+                            "code", "COUPON_ALREADY_ISSUED",
+                            "message", "이미 발급받은 쿠폰입니다");
                 }
             }
+            // 4. 쿠폰 만료 확인
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime startsAt = LocalDateTime.parse((String) coupon.get("startsAt"));
+            LocalDateTime endsAt = LocalDateTime.parse((String) coupon.get("endsAt"));
+            if(now.isBefore(startsAt)){
+                return Map.of(
+                        "code", "COUPON_NOT_STARTED",
+                        "message", "아직 발급이 시작되지 않은 쿠폰입니다"
 
-            // 4. 쿠폰 발급
+                );
+            }
+
+            if(now.isAfter(endsAt)){
+                return Map.of(
+                        "code", "COUPON_EXPIRED",
+                        "message", "쿠폰 발급 기간이 만료되었습니다"
+
+                );
+            }
+
+
+            // 5. 쿠폰 발급
             Long userCouponId = InMemoryDataStore.nextUserCouponId();
+            String issuedAt = LocalDateTime.now().toString();
+            String expiresAt = LocalDateTime.now().plusDays(30).toString();
             Map<String, Object> userCoupon = new HashMap<>(Map.of(
-                "userCouponId", userCouponId,
-                "code", code,
-                "couponName", coupon.get("name"),
-                "userId", userId,
-                "isUsed", false,
-                "issuedAt", LocalDateTime.now().toString()
+                    "userCouponId", userCouponId,
+                    "couponId", couponId,
+                    "userId" , userId,
+                    "isUsed", false,
+                    "issuedAt", issuedAt,
+                    "expiresAt", expiresAt
             ));
 
             userCoupons.add(userCoupon);
 
             // 잔여 수량 감소
             coupon.put("remainingQuantity", remaining - 1);
-
             return Map.of(
-                "userCouponId", userCouponId,
-                "code", code,
-                "couponName", coupon.get("name"),
-                "message", "쿠폰이 발급되었습니다"
+                    "data", Map.ofEntries(
+                                Map.entry("userCouponId", userCouponId),
+                                Map.entry("couponId", couponId),
+                                Map.entry("userId", userId),
+                                Map.entry("code",  coupon.get("code")),
+                                Map.entry("couponName",  coupon.get("name")),
+                                Map.entry("discountType", coupon.get("discountType")),
+                                Map.entry("discountValue", coupon.get("discountValue")),
+                                Map.entry("minOrderAmount", coupon.get("minOrderAmount")),
+                                Map.entry("isUsed", false),
+                                Map.entry("issuedAt", issuedAt),
+                                Map.entry("expiresAt", expiresAt)
+                            )
             );
         }
     }
 
     /**
      * 내 쿠폰 목록 조회
-     * GET /api/users/me/coupons
      */
     @GetMapping("/users/me/coupons")
     public Map<String, Object> getMyCoupons(
@@ -133,15 +159,22 @@ public class MockCouponController {
             }
 
             // 쿠폰 상세 정보 추가
-            String code = (String) uc.get("code");
-            Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(code);
+            Long couponId = (Long) uc.get("couponId");
+            Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponId);
 
             if (coupon != null) {
                 Map<String, Object> enriched = new HashMap<>(uc);
+                enriched.put("userCouponId", uc.get("userCouponId"));
+                enriched.put("couponId", couponId);
+                enriched.put("userId", userId);
+                enriched.put("code", coupon.get("code"));
+                enriched.put("name", coupon.get("name"));
                 enriched.put("discountType", coupon.get("discountType"));
                 enriched.put("discountValue", coupon.get("discountValue"));
                 enriched.put("minOrderAmount", coupon.get("minOrderAmount"));
-                enriched.put("maxDiscountAmount", coupon.get("maxDiscountAmount"));
+                enriched.put("isUsed", used);
+                enriched.put("issuedAt", uc.get("issuedAt"));
+                enriched.put("expiresAt", uc.get("expiresAt"));
                 result.add(enriched);
             }
         }

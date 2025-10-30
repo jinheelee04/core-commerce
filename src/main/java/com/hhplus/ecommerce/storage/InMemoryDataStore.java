@@ -132,10 +132,10 @@ public class InMemoryDataStore {
     public static final Map<Long, Map<String, Object>> PAYMENTS = new ConcurrentHashMap<>();
 
     // ===== 쿠폰 데이터 =====
-    public static final Map<String, Map<String, Object>> COUPONS = new ConcurrentHashMap<>();
+    public static final Map<Long, Map<String, Object>> COUPONS = new ConcurrentHashMap<>();
 
     static {
-        COUPONS.put("WELCOME10", new HashMap<>(Map.ofEntries(
+        COUPONS.put(1L, new HashMap<>(Map.ofEntries(
                 Map.entry("couponId", 1L),
                 Map.entry("code", "WELCOME10"),
                 Map.entry("name", "신규 회원 10% 할인"),
@@ -148,12 +148,12 @@ public class InMemoryDataStore {
                 Map.entry("remainingQuantity", 100),
                 Map.entry("startsAt", LocalDateTime.now().toString()),
                 Map.entry("endsAt", LocalDateTime.now().plusDays(30).toString()),
-                Map.entry("status", "ACTIVE"),
-                Map.entry("createdAt", LocalDateTime.now().toString()),
-                Map.entry("updatedAt", LocalDateTime.now().toString())
+                Map.entry("status", "ACTIVE")
+//                Map.entry("createdAt", LocalDateTime.now().toString()),
+//                Map.entry("updatedAt", LocalDateTime.now().toString())
         )));
 
-        COUPONS.put("FIXED5000", new HashMap<>(Map.ofEntries(
+        COUPONS.put(2L, new HashMap<>(Map.ofEntries(
                 Map.entry("couponId", 2L),
                 Map.entry("code", "FIXED5000"),
                 Map.entry("name", "5000원 할인 쿠폰"),
@@ -166,9 +166,9 @@ public class InMemoryDataStore {
                 Map.entry("remainingQuantity", 50),
                 Map.entry("startsAt", LocalDateTime.now().toString()),
                 Map.entry("endsAt", LocalDateTime.now().plusDays(30).toString()),
-                Map.entry("status", "ACTIVE"),
-                Map.entry("createdAt", LocalDateTime.now().toString()),
-                Map.entry("updatedAt", LocalDateTime.now().toString())
+                Map.entry("status", "ACTIVE")
+//                Map.entry("createdAt", LocalDateTime.now().toString()),
+//                Map.entry("updatedAt", LocalDateTime.now().toString())
         )));
     }
 

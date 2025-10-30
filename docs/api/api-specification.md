@@ -817,15 +817,19 @@ X-User-Id: 123
   "message": "쿠폰이 모두 소진되었습니다"
 }
 ```
+**Response 400 Bad Request (발급 시작 전 쿠폰)**
+```json
+{
+  "code": "COUPON_NOT_STARTED",
+  "message": "아직 발급이 시작되지 않은 쿠폰입니다"
+}
+```
 
 **Response 400 Bad Request (만료된 쿠폰)**
 ```json
 {
   "code": "COUPON_EXPIRED",
-  "message": "만료된 쿠폰입니다",
-  "details": {
-    "expiresAt": "2025-01-27T23:59:59Z"
-  }
+  "message": "쿠폰 발급 기간이 만료되었습니다"
 }
 ```
 

@@ -583,7 +583,7 @@ paths:
         - 쿠폰
       summary: 쿠폰 발급
       description: |
-        쿠폰 코드로 쿠폰을 발급받습니다.
+        쿠폰 ID로 쿠폰을 발급받습니다.
 
         **검증 사항:**
         - 쿠폰 상태 ACTIVE
@@ -600,12 +600,12 @@ paths:
             schema:
               type: object
               required:
-                - couponCode
+                - couponId
               properties:
-                couponCode:
-                  type: string
-                  description: 쿠폰 코드
-                  example: WELCOME2024
+                couponId:
+                  type: integer
+                  description: 쿠폰 ID
+                  example: 1
       responses:
         '201':
           description: 쿠폰 발급 성공
@@ -633,6 +633,16 @@ paths:
                   value:
                     code: COUPON_OUT_OF_STOCK
                     message: 쿠폰이 모두 소진되었습니다
+                not_started:
+                  summary: 쿠폰 발급 시작 전
+                  value:
+                    code: COUPON_NOT_STARTED
+                    message: 아직 발급이 시작되지 않은 쿠폰입니다 
+                expired:
+                  summary: 쿠폰 만료
+                  value:
+                    code: COUPON_EXPIRED
+                    message: 쿠폰 발급 기간이 만료되었습니다
 
     get:
       tags:
@@ -668,6 +678,15 @@ paths:
       summary: 발급 가능한 쿠폰 목록 조회
       description: 현재 발급 가능한 쿠폰 목록을 조회합니다.
       operationId: getAvailableCoupons
+      security:
+        - UserIdHeader: [ ]
+      parameters:
+        - name: orderAmount
+          in: query
+          description: 주문 금액 (최소 금액 필터링용)
+          schema:
+            type: long
+            example:
       responses:
         '200':
           description: 성공
