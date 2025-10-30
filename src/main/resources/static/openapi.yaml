@@ -49,7 +49,7 @@ paths:
           description: 카테고리 필터
           schema:
             type: string
-            example: ELECTRONICS
+            example: ELECTRONICS or PERIPHERAL
         - name: keyword
           in: query
           description: 검색 키워드 (상품명, 설명)
@@ -75,7 +75,7 @@ paths:
           description: 정렬 기준
           schema:
             type: string
-            enum: [price,asc, price,desc, createdAt,desc, popular]
+            enum: ["price,asc", "price,desc", "createdAt,desc", "popular"]
             default: createdAt,desc
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
@@ -138,7 +138,7 @@ paths:
                   data:
                     $ref: '#/components/schemas/ProductDetail'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProductNotFound'
 
   /carts/me:
     get:
@@ -188,17 +188,17 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/CartItem'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          description: 재고 부족
+          description: 품절 상품
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: INSUFFICIENT_STOCK
-                message: 재고가 부족합니다
+                code: PRODUCT_OUT_OF_STOCK
+                message: 품절된 상품입니다
 
     delete:
       tags:
@@ -245,7 +245,14 @@ paths:
                   data:
                     $ref: '#/components/schemas/CartItem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: 장바구니 항목 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: CART_ITEM_NOT_FOUND
+                message: 장바구니 항목을 찾을 수 없습니다
 
     delete:
       tags:
@@ -266,7 +273,14 @@ paths:
         '204':
           description: 성공
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: 장바구니 항목 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: CART_ITEM_NOT_FOUND
+                message: 장바구니 항목을 찾을 수 없습니다
 
   /orders:
     post:
@@ -315,7 +329,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: INSUFFICIENT_STOCK
+                code: INSUFFICIENT_STOCK
                 message: 재고가 부족합니다
 
     get:
@@ -490,7 +504,7 @@ paths:
                 payment_failed:
                   summary: 결제 실패
                   value:
-                    error: PAYMENT_FAILED
+                    code: PAYMENT_FAILED
                     message: 결제에 실패했습니다
                     details:
                       failReason: 카드 한도 초과
@@ -499,7 +513,7 @@ paths:
                 amount_mismatch:
                   summary: 결제 금액 불일치
                   value:
-                    error: PAYMENT_AMOUNT_MISMATCH
+                    code: PAYMENT_AMOUNT_MISMATCH
                     message: 결제 금액이 주문 금액과 일치하지 않습니다
                     details:
                       expectedAmount: 4980000
@@ -612,12 +626,12 @@ paths:
                 already_issued:
                   summary: 이미 발급된 쿠폰
                   value:
-                    error: COUPON_ALREADY_ISSUED
+                    code: COUPON_ALREADY_ISSUED
                     message: 이미 발급받은 쿠폰입니다
                 out_of_stock:
                   summary: 쿠폰 소진
                   value:
-                    error: COUPON_OUT_OF_STOCK
+                    code: COUPON_OUT_OF_STOCK
                     message: 쿠폰이 모두 소진되었습니다
 
     get:
@@ -1135,15 +1149,12 @@ components:
     Error:
       type: object
       properties:
-        error:
+        code:
           type: string
           description: 에러 코드
         message:
           type: string
           description: 에러 메시지
-        timestamp:
-          type: string
-          format: date-time
         details:
           type: object
           description: 추가 세부 정보
@@ -1157,9 +1168,8 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: BAD_REQUEST
+            code: BAD_REQUEST
             message: 잘못된 요청입니다
-            timestamp: '2025-01-28T10:00:00Z'
 
     NotFound:
       description: 리소스를 찾을 수 없음
@@ -1168,9 +1178,17 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: NOT_FOUND
+            code: NOT_FOUND
             message: 리소스를 찾을 수 없습니다
-            timestamp: '2025-01-28T10:00:00Z'
+    ProductNotFound:
+      description: 상품을 찾을 수 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: PRODUCT_NOT_FOUND
+            message: 상품을 찾을 수 없습니다
 
 security:
   - UserIdHeader: []

@@ -14,7 +14,6 @@ public class MockProductController {
 
     /**
      * 상품 목록 조회
-     * GET /api/products
      */
     @GetMapping
     public Map<String, Object> getProducts(
@@ -54,6 +53,11 @@ public class MockProductController {
                 continue;
             }
 
+            Map<String, Object> inventory = InMemoryDataStore.INVENTORY.get((Long)product.get("productId"));
+            int stock = (int) inventory.get("stock");
+            int reserved = (int) inventory.get("reservedStock");
+            product.put("availableStock", stock - reserved);
+            product.remove("updatedAt");
             products.add(product);
         }
 
@@ -103,14 +107,17 @@ public class MockProductController {
 
     /**
      * 상품 상세 조회
-     * GET /api/products/{productId}
      */
     @GetMapping("/{productId}")
     public Map<String, Object> getProduct(@PathVariable Long productId) {
         Map<String, Object> product = InMemoryDataStore.PRODUCTS.get(productId);
 
         if (product == null) {
-            return Map.of("error", "상품을 찾을 수 없습니다");
+            return Map.of(
+                    "code", "PRODUCT_NOT_FOUND",
+                    "message", "상품을 찾을 수 없습니다"
+
+            );
         }
 
         // 재고 정보 추가
@@ -119,6 +126,8 @@ public class MockProductController {
             int stock = (int) inventory.get("stock");
             int reserved = (int) inventory.get("reservedStock");
             Map<String, Object> response = new HashMap<>(product);
+            response.put("stock", stock);
+            response.put("reservedStock", reserved);
             response.put("availableStock", stock - reserved);
             return response;
         }
