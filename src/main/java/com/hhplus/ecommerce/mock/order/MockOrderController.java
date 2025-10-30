@@ -30,13 +30,29 @@ public class MockOrderController {
         Long couponId = request.get("couponId") != null ? ((Number) request.get("couponId")).longValue() : null;
 
         if (cartItemIds == null || cartItemIds.isEmpty()) {
-            return Map.of("error", "주문 상품이 없습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
 
-        // 0. 장바구니 아이템 조회
-        List<Map<String, Object>> cartItems = InMemoryDataStore.CARTS.get(userId);
+        // 0. 장바구니 조회
+        Map<String, Object> cart = InMemoryDataStore.CARTS.get(userId);
+        if (cart == null) {
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
+        }
+
+        // 0-1. 장바구니 아이템 조회
+        Long cartId = (Long) cart.get("cartId");
+        List<Map<String, Object>> cartItems = InMemoryDataStore.CART_ITEMS.get(cartId);
         if (cartItems == null || cartItems.isEmpty()) {
-            return Map.of("error", "장바구니가 비어있습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
 
         List<Map<String, Object>> selectedItems = new ArrayList<>();
@@ -50,7 +66,11 @@ public class MockOrderController {
                 }
             }
             if (!found) {
-                return Map.of("error", "장바구니 아이템을 찾을 수 없습니다", "cartItemId", cartItemId);
+                return Map.of(
+                    "code", "CART_ITEM_NOT_FOUND",
+                    "message", "장바구니 항목을 찾을 수 없습니다",
+                    "details", Map.of("cartItemId", cartItemId)
+                );
             }
         }
 
@@ -65,7 +85,10 @@ public class MockOrderController {
             // 상품 조회
             Map<String, Object> product = InMemoryDataStore.PRODUCTS.get(productId);
             if (product == null) {
-                return Map.of("error", "상품을 찾을 수 없습니다", "productId", productId);
+                return Map.of(
+                    "code", "PRODUCT_NOT_FOUND",
+                    "message", "상품을 찾을 수 없습니다"
+                );
             }
 
             // 재고 확인
@@ -74,7 +97,16 @@ public class MockOrderController {
             int reserved = (int) inventory.get("reservedStock");
 
             if (stock - reserved < quantity) {
-                return Map.of("error", "재고가 부족합니다", "productId", productId, "availableStock", stock - reserved);
+                return Map.of(
+                    "code", "INSUFFICIENT_STOCK",
+                    "message", "재고가 부족합니다",
+                    "details", Map.of(
+                            "productId", productId,
+                                "productName", product.get("name"),
+                                "requestedQuantity", quantity,
+                                "availableStock", stock - reserved
+                    )
+                );
             }
 
             // 재고 예약
@@ -84,20 +116,21 @@ public class MockOrderController {
             long unitPrice = (Long) product.get("price");
             long subtotal = unitPrice * quantity;
 
-            orderItems.add(Map.of(
-                "productId", productId,
-                "productName", product.get("name"),
-                "quantity", quantity,
-                "unitPrice", unitPrice,
-                "subtotal", subtotal
-            ));
+            Map<String, Object> orderItem = new HashMap<>();
+            orderItem.put("orderItemId", InMemoryDataStore.nextOrderItemId());
+            orderItem.put("productId", productId);
+            orderItem.put("productName", product.get("name"));
+            orderItem.put("quantity", quantity);
+            orderItem.put("price", unitPrice);
+            orderItem.put("subtotal", subtotal);
+            orderItems.add(orderItem);
 
             itemsTotal += subtotal;
         }
 
         // 2. 쿠폰 할인 계산
         long discountAmount = 0;
-        String couponCode = null;
+        Map<String, Object> appliedCoupon = null;
         if (couponId != null) {
             // 사용자가 해당 쿠폰을 발급받았는지 확인
             List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.get(userId);
@@ -106,7 +139,6 @@ public class MockOrderController {
                 for (Map<String, Object> uc : userCoupons) {
                     if (couponId.equals(uc.get("userCouponId")) && !((Boolean) uc.getOrDefault("isUsed", false))) {
                         userCoupon = uc;
-                        couponCode = (String) uc.get("code");
                         break;
                     }
                 }
@@ -114,25 +146,43 @@ public class MockOrderController {
 
             if (userCoupon == null) {
                 rollbackInventoryReservation(selectedItems);
-                return Map.of("error", "발급받지 않은 쿠폰이거나 이미 사용된 쿠폰입니다");
+                return Map.of(
+                    "code", "COUPON_NOT_FOUND",
+                    "message", "쿠폰을 찾을 수 없거나 사용자에게 발급되지 않은 쿠폰입니다"
+                );
             }
 
-            Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponCode);
+            Long couponMasterId = (Long) userCoupon.get("couponId");
+            Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponMasterId);
             if (coupon == null) {
                 rollbackInventoryReservation(selectedItems);
-                return Map.of("error", "유효하지 않은 쿠폰입니다");
+                return Map.of(
+                    "code", "COUPON_NOT_FOUND",
+                    "message", "유효하지 않은 쿠폰입니다"
+                );
             }
 
             if (!"ACTIVE".equals(coupon.get("status"))) {
                 rollbackInventoryReservation(selectedItems);
-                return Map.of("error", "사용할 수 없는 쿠폰입니다");
+                return Map.of(
+                    "code", "COUPON_EXPIRED",
+                    "message", "만료된 쿠폰입니다"
+                );
             }
 
             // 최소 주문 금액 확인
             long minOrderAmount = (Long) coupon.get("minOrderAmount");
             if (itemsTotal < minOrderAmount) {
                 rollbackInventoryReservation(selectedItems);
-                return Map.of("error", "최소 주문 금액을 충족하지 않습니다", "minOrderAmount", minOrderAmount);
+                return Map.of(
+                    "code", "COUPON_MIN_ORDER_AMOUNT_NOT_MET",
+                    "message", "쿠폰 사용을 위한 최소 주문 금액을 충족하지 못했습니다",
+                    "details", Map.of(
+                        "couponId", couponId,
+                        "minOrderAmount", minOrderAmount,
+                        "currentAmount", itemsTotal
+                    )
+                );
             }
 
             // 할인 금액 계산
@@ -148,6 +198,15 @@ public class MockOrderController {
             } else if ("FIXED_AMOUNT".equals(discountType)) {
                 discountAmount = (int) coupon.get("discountValue");
             }
+
+            // 적용된 쿠폰 정보 저장
+            appliedCoupon = new HashMap<>();
+            appliedCoupon.put("couponId", couponMasterId);
+            appliedCoupon.put("name", coupon.get("name"));
+            appliedCoupon.put("discountAmount", discountAmount);
+
+            // userCoupon에 orderId 저장 (주문 생성 후 업데이트 예정)
+            userCoupon.put("orderId", null);
         }
 
         long finalAmount = itemsTotal - discountAmount;
@@ -156,57 +215,55 @@ public class MockOrderController {
         Long orderId = InMemoryDataStore.nextOrderId();
         String orderNumber = InMemoryDataStore.generateOrderNumber();
 
+        Map<String, Object> pricing = new HashMap<>();
+        pricing.put("itemsTotal", itemsTotal);
+        pricing.put("discountAmount", discountAmount);
+        pricing.put("finalAmount", finalAmount);
+
         Map<String, Object> order = new HashMap<>();
         order.put("orderId", orderId);
         order.put("userId", userId);
         order.put("orderNumber", orderNumber);
         order.put("status", "PENDING");
-        order.put("itemsTotal", itemsTotal);
-        order.put("discountAmount", discountAmount);
-        order.put("finalAmount", finalAmount);
+        order.put("pricing", pricing);
+        order.put("items", orderItems);
         order.put("deliveryAddress", deliveryAddress);
         order.put("deliveryMemo", deliveryMemo);
-        order.put("items", orderItems);
         order.put("createdAt", LocalDateTime.now().toString());
+        order.put("expiresAt", LocalDateTime.now().plusMinutes(15).toString());
 
-        if (couponCode != null && !couponCode.isEmpty()) {
-            order.put("couponCode", couponCode);
+        if (appliedCoupon != null) {
+            order.put("coupon", appliedCoupon);
         }
 
         InMemoryDataStore.ORDERS.put(orderId, order);
+        InMemoryDataStore.ORDER_ITEMS.put(orderId, orderItems);
 
         // 4. 장바구니에서 주문한 아이템 제거
         for (Integer cartItemId : cartItemIds) {
             cartItems.removeIf(item -> cartItemId.equals(((Number) item.get("cartItemId")).intValue()));
         }
 
-        return Map.of(
-            "orderId", orderId,
-            "orderNumber", orderNumber,
-            "status", "PENDING",
-            "itemsTotal", itemsTotal,
-            "discountAmount", discountAmount,
-            "finalAmount", finalAmount,
-            "items", orderItems
-        );
+        return Map.of("data", order);
     }
 
     /**
      * 주문 조회
-     * GET /api/orders/{orderId}
      */
     @GetMapping("/{orderId}")
     public Map<String, Object> getOrder(@PathVariable Long orderId) {
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
-            return Map.of("error", "주문을 찾을 수 없습니다");
+            return Map.of(
+                "code", "ORDER_NOT_FOUND",
+                "message", "주문을 찾을 수 없습니다"
+            );
         }
-        return order;
+        return Map.of("data", order);
     }
 
     /**
      * 주문 목록 조회
-     * GET /api/orders
      */
     @GetMapping
     public Map<String, Object> getOrders(
@@ -258,8 +315,27 @@ public class MockOrderController {
             ? userOrders.subList(fromIndex, toIndex)
             : new ArrayList<>();
 
+        // OrderSummary 형식으로 변환
+        List<Map<String, Object>> orderSummaries = new ArrayList<>();
+        for (Map<String, Object> order : pagedOrders) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> items = (List<Map<String, Object>>) order.get("items");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pricing = (Map<String, Object>) order.get("pricing");
+
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("orderId", order.get("orderId"));
+            summary.put("orderNumber", order.get("orderNumber"));
+            summary.put("status", order.get("status"));
+            summary.put("itemCount", items != null ? items.size() : 0);
+            summary.put("totalAmount", pricing != null ? pricing.get("finalAmount") : 0L);
+            summary.put("createdAt", order.get("createdAt"));
+
+            orderSummaries.add(summary);
+        }
+
         return Map.of(
-            "data", pagedOrders,
+            "data", orderSummaries,
             "meta", Map.of(
                 "page", page,
                 "size", size,
@@ -278,22 +354,39 @@ public class MockOrderController {
             @PathVariable Long orderId,
             @RequestBody Map<String, Object> request
     ) {
-        String action = (String) request.get("action");
-        if (!"cancel".equals(action)) {
-            return Map.of("error", "지원하지 않는 작업입니다");
+        String requestedStatus = (String) request.get("status");
+        if (!"CANCELLED".equals(requestedStatus)) {
+            return Map.of(
+                "code", "INVALID_REQUEST",
+                "message", "지원하지 않는 작업입니다"
+            );
         }
 
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
-            return Map.of("error", "주문을 찾을 수 없습니다");
+            return Map.of(
+                "code", "ORDER_NOT_FOUND",
+                "message", "주문을 찾을 수 없습니다"
+            );
         }
 
         String status = (String) order.get("status");
         if ("CANCELLED".equals(status)) {
-            return Map.of("error", "이미 취소된 주문입니다");
+            return Map.of(
+                "code", "ORDER_ALREADY_CANCELLED",
+                "message", "이미 취소된 주문입니다"
+            );
         }
         if ("PAID".equals(status) || "CONFIRMED".equals(status)) {
-            return Map.of("error", "결제 완료된 주문은 취소할 수 없습니다");
+            return Map.of(
+                "code", "ORDER_ALREADY_PAID",
+                "message", "이미 결제된 주문은 취소할 수 없습니다",
+                "details", Map.of(
+                    "orderId", orderId,
+                    "status", status,
+                    "paidAt", order.getOrDefault("paidAt", "")
+                )
+            );
         }
 
         // 재고 예약 해제
@@ -308,14 +401,20 @@ public class MockOrderController {
             inventory.put("reservedStock", Math.max(0, reserved - quantity));
         }
 
-        String reason = (String) request.getOrDefault("reason", "사용자 요청");
+        String reason = (String) request.getOrDefault("cancelReason", "사용자 요청");
+        String cancelledAt = LocalDateTime.now().toString();
+
         order.put("status", "CANCELLED");
-        order.put("cancelledAt", LocalDateTime.now().toString());
+        order.put("cancelledAt", cancelledAt);
         order.put("cancelReason", reason);
 
-        return Map.of(
-            "data", order
-        );
+        // 응답은 필수 필드만 반환
+        return Map.of("data", Map.of(
+            "orderId", orderId,
+            "status", "CANCELLED",
+            "cancelledAt", cancelledAt,
+            "cancelReason", reason
+        ));
     }
 
     /**
@@ -327,7 +426,10 @@ public class MockOrderController {
         // 주문 확인
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
-            return Map.of("error", "주문을 찾을 수 없습니다");
+            return Map.of(
+                "code", "ORDER_NOT_FOUND",
+                "message", "주문을 찾을 수 없습니다"
+            );
         }
 
         // 결제 정보 조회
@@ -337,7 +439,10 @@ public class MockOrderController {
             }
         }
 
-        return Map.of("error", "결제 정보를 찾을 수 없습니다");
+        return Map.of(
+            "code", "PAYMENT_NOT_FOUND",
+            "message", "해당 주문의 결제 내역이 없습니다"
+        );
     }
 
     /**

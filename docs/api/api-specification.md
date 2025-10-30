@@ -367,6 +367,7 @@ X-User-Id: 123
       "discountAmount": 500000
     },
     "deliveryAddress": "서울시 강남구 테헤란로 123",
+    "deliveryMemo": "문 앞에 놓아주세요",
     "createdAt": "2025-01-28T10:00:00Z",
     "expiresAt": "2025-01-28T10:15:00Z"
   }
@@ -626,7 +627,7 @@ X-User-Id: 123
 
 **Validation Rules**
 - `orderId`: 필수, 양의 정수
-- `paymentMethod`: 필수, `CARD`, `VIRTUAL_ACCOUNT`, `BANK_TRANSFER` 중 하나
+- `paymentMethod`: 필수, `CARD`, `VIRTUAL_ACCOUNT`, `PHONE` 중 하나
 - `amount`: 필수, 주문의 최종 금액과 일치해야 함 (검증용)
 - `cardInfo`: 결제 수단이 `CARD`일 경우 필수
 
@@ -697,7 +698,7 @@ X-User-Id: 123
 
 ---
 
-### 2. 결제 상태 조회
+### 2. 결제 상세 조회
 
 **Endpoint**: `GET /payments/{paymentId}`
 
@@ -791,6 +792,7 @@ X-User-Id: 123
     "discountType": "FIXED_AMOUNT",
     "discountValue": 10000,
     "minOrderAmount": 50000,
+    "maxDiscountAmount": 5000,
     "isUsed": false,
     "issuedAt": "2025-01-28T10:00:00Z",
     "expiresAt": "2025-12-31T23:59:59Z"
@@ -813,7 +815,7 @@ X-User-Id: 123
 **Response 409 Conflict (수량 소진)**
 ```json
 {
-  "code": "COUPON_EXHAUSTED",
+  "code": "COUPON_OUT_OF_STOCK",
   "message": "쿠폰이 모두 소진되었습니다"
 }
 ```
@@ -936,7 +938,7 @@ X-User-Id: 123
 | `INSUFFICIENT_STOCK` | 409 | 재고 부족 |
 | `COUPON_NOT_FOUND` | 404 | 쿠폰을 찾을 수 없음 |
 | `COUPON_ALREADY_ISSUED` | 409 | 이미 발급받은 쿠폰 |
-| `COUPON_EXHAUSTED` | 409 | 쿠폰 수량 소진 |
+| `COUPON_OUT_OF_STOCK` | 409 | 쿠폰 수량 소진 |
 | `COUPON_ALREADY_USED` | 400 | 이미 사용된 쿠폰 |
 | `COUPON_EXPIRED` | 400 | 만료된 쿠폰 |
 | `COUPON_MIN_ORDER_AMOUNT_NOT_MET` | 400 | 최소 주문 금액 미달 |

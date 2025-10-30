@@ -129,9 +129,9 @@ public class MockProductController {
             response.put("stock", stock);
             response.put("reservedStock", reserved);
             response.put("availableStock", stock - reserved);
-            return response;
+            return Map.of("data", response);
         }
 
-        return product;
+        return Map.of("data", product);
     }
 }

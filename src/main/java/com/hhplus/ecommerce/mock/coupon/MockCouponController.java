@@ -60,15 +60,20 @@ public class MockCouponController {
         }
 
         if (!"ACTIVE".equals(coupon.get("status"))) {
-            return Map.of("error", "발급할 수 없는 쿠폰입니다");
+            return Map.of(
+                "code", "COUPON_INACTIVE",
+                "message", "발급할 수 없는 쿠폰입니다"
+            );
         }
 
         // 2. 잔여 수량 확인
         synchronized (coupon) {
             int remaining = (int) coupon.get("remainingQuantity");
             if (remaining <= 0) {
-                return Map.of("code", "COUPON_EXHAUSTED"
-                        ,"error", "쿠폰이 모두 소진되었습니다");
+                return Map.of(
+                    "code", "COUPON_OUT_OF_STOCK",
+                    "message", "쿠폰이 모두 소진되었습니다"
+                );
             }
 
             // 3. 중복 발급 확인 (1인 1매 제한)
@@ -127,10 +132,11 @@ public class MockCouponController {
                                 Map.entry("couponId", couponId),
                                 Map.entry("userId", userId),
                                 Map.entry("code",  coupon.get("code")),
-                                Map.entry("couponName",  coupon.get("name")),
+                                Map.entry("name",  coupon.get("name")),
                                 Map.entry("discountType", coupon.get("discountType")),
                                 Map.entry("discountValue", coupon.get("discountValue")),
                                 Map.entry("minOrderAmount", coupon.get("minOrderAmount")),
+                                Map.entry("maxDiscountAmount", coupon.get("maxDiscountAmount")),
                                 Map.entry("isUsed", false),
                                 Map.entry("issuedAt", issuedAt),
                                 Map.entry("expiresAt", expiresAt)

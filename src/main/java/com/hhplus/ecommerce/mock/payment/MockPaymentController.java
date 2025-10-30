@@ -34,15 +34,29 @@ public class MockPaymentController {
         // 1. 주문 조회
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
-            return Map.of("error", "주문을 찾을 수 없습니다");
+            return Map.of(
+                "code", "ORDER_NOT_FOUND",
+                "message", "주문을 찾을 수 없습니다"
+            );
         }
 
         String orderStatus = (String) order.get("status");
         if (!"PENDING".equals(orderStatus)) {
-            return Map.of("error", "결제 대기 상태가 아닙니다", "currentStatus", orderStatus);
+            return Map.of(
+                "code", "INVALID_ORDER_STATUS",
+                "message", "결제 대기 상태의 주문만 결제할 수 있습니다",
+                "details", Map.of(
+                    "orderId", orderId,
+                    "currentStatus", orderStatus
+                )
+            );
         }
 
-        Long finalAmount = (Long) order.get("finalAmount");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pricing = (Map<String, Object>) order.get("pricing");
+        Long itemsTotal = (Long) pricing.get("itemsTotal");
+        Long discountAmount = (Long) pricing.get("discountAmount");
+        Long finalAmount = (Long) pricing.get("finalAmount");
 
         // 2. Mock PG 호출
         Map<String, Object> pgRequest = Map.of(
@@ -57,21 +71,25 @@ public class MockPaymentController {
         );
 
         if (pgResponse == null) {
-            return Map.of("error", "결제 처리 중 오류가 발생했습니다");
+            return Map.of(
+                "code", "PAYMENT_FAILED",
+                "message", "결제 처리 중 오류가 발생했습니다"
+            );
         }
 
         String pgStatus = (String) pgResponse.get("status");
 
         // 3. 결제 결과 처리
         Long paymentId = InMemoryDataStore.nextPaymentId();
-        Map<String, Object> payment = new HashMap<>(Map.of(
-            "paymentId", paymentId,
-            "orderId", orderId,
-            "amount", finalAmount,
-            "paymentMethod", paymentMethod,
-            "status", pgStatus,
-            "createdAt", LocalDateTime.now().toString()
-        ));
+        Map<String, Object> payment = new HashMap<>();
+        payment.put("paymentId", paymentId);
+        payment.put("orderId", orderId);
+        payment.put("amount", itemsTotal);
+        payment.put("discountAmount", discountAmount);
+        payment.put("finalAmount", finalAmount);
+        payment.put("paymentMethod", paymentMethod);
+        payment.put("status", pgStatus);
+        payment.put("createdAt", LocalDateTime.now().toString());
 
         if ("SUCCESS".equals(pgStatus)) {
             // 결제 성공 처리
@@ -83,7 +101,7 @@ public class MockPaymentController {
 
         InMemoryDataStore.PAYMENTS.put(paymentId, payment);
 
-        return payment;
+        return Map.of("data", payment);
     }
 
     /**
@@ -115,14 +133,16 @@ public class MockPaymentController {
         }
 
         // 쿠폰 사용 처리
-        String couponCode = (String) order.get("couponCode");
-        if (couponCode != null) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> appliedCoupon = (Map<String, Object>) order.get("coupon");
+        if (appliedCoupon != null) {
             Long userId = (Long) order.get("userId");
+            Long couponMasterId = (Long) appliedCoupon.get("couponId");
             List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.get(userId);
 
             if (userCoupons != null) {
                 for (Map<String, Object> userCoupon : userCoupons) {
-                    if (couponCode.equals(userCoupon.get("code")) &&
+                    if (couponMasterId.equals(userCoupon.get("couponId")) &&
                         !((Boolean) userCoupon.getOrDefault("isUsed", false))) {
                         userCoupon.put("isUsed", true);
                         userCoupon.put("usedAt", LocalDateTime.now().toString());
@@ -168,9 +188,12 @@ public class MockPaymentController {
     public Map<String, Object> getPayment(@PathVariable Long paymentId) {
         Map<String, Object> payment = InMemoryDataStore.PAYMENTS.get(paymentId);
         if (payment == null) {
-            return Map.of("error", "결제 정보를 찾을 수 없습니다");
+            return Map.of(
+                "code", "PAYMENT_NOT_FOUND",
+                "message", "결제 정보를 찾을 수 없습니다"
+            );
         }
-        return payment;
+        return Map.of("data", payment);
     }
 
     /**
@@ -181,9 +204,12 @@ public class MockPaymentController {
     public Map<String, Object> getPaymentByOrder(@PathVariable Long orderId) {
         for (Map<String, Object> payment : InMemoryDataStore.PAYMENTS.values()) {
             if (orderId.equals(payment.get("orderId"))) {
-                return payment;
+                return Map.of("data", payment);
             }
         }
-        return Map.of("error", "결제 정보를 찾을 수 없습니다");
+        return Map.of(
+            "code", "PAYMENT_NOT_FOUND",
+            "message", "해당 주문의 결제 내역이 없습니다"
+        );
     }
 }

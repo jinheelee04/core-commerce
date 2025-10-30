@@ -70,13 +70,15 @@ public class MockCartController {
             }
         }
 
-        return Map.of(
-                "cartId", cartId,
-                "userId", userId,
-                "items", enrichedItems,
-                "totalQuantity", totalQuantity,
-                "totalAmount", totalAmount
-        );
+        Map<String, Object> cartData = new HashMap<>();
+        cartData.put("cartId", cartId);
+        cartData.put("userId", userId);
+        cartData.put("items", enrichedItems);
+        cartData.put("totalQuantity", totalQuantity);
+        cartData.put("totalAmount", totalAmount);
+        cartData.put("updatedAt", carts.get("updatedAt"));
+
+        return Map.of("data", cartData);
     }
 
     /**
@@ -144,12 +146,14 @@ public class MockCartController {
             quantity +=currentQty;
 
             return Map.of(
-                    "cartItemId", existingItem.get("cartItemId"),
-                    "productId", productId,
-                    "productName",productName,
-                    "quantity",  quantity,
-                    "subtotal", price * quantity,
-                    "createdAt", existingItem.get("createdAt")
+                    "data", Map.of(
+                        "cartItemId", existingItem.get("cartItemId"),
+                        "productId", productId,
+                        "productName", productName,
+                        "quantity", quantity,
+                        "subtotal", price * quantity,
+                        "createdAt", existingItem.get("createdAt")
+                    )
             );
         } else {
             // 새로운 아이템 추가
@@ -166,12 +170,14 @@ public class MockCartController {
             InMemoryDataStore.CART_ITEMS.put(cartId, cartItems);
 
             return Map.of(
-                    "cartItemId", cartItemId,
-                    "productId", productId,
-                    "productName",productName,
-                    "quantity", quantity,
-                    "subtotal", price * quantity,
-                    "createdAt", newItem.get("createdAt")
+                    "data", Map.of(
+                        "cartItemId", cartItemId,
+                        "productId", productId,
+                        "productName", productName,
+                        "quantity", quantity,
+                        "subtotal", price * quantity,
+                        "createdAt", newItem.get("createdAt")
+                    )
             );
         }
     }
@@ -189,11 +195,17 @@ public class MockCartController {
 
         Map<String, Object> carts = InMemoryDataStore.CARTS.getOrDefault(userId, new HashMap<>());
         if (CollectionUtils.isEmpty(carts)) {
-            return Map.of("error", "장바구니가 비어있습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
         List<Map<String, Object>> cartItems = InMemoryDataStore.CART_ITEMS.get((Long)carts.get("cartId"));
         if (CollectionUtils.isEmpty(cartItems)) {
-            return Map.of("error", "장바구니가 비어있습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
 
         for (Map<String, Object> item : cartItems) {
@@ -207,11 +219,13 @@ public class MockCartController {
                 long price = (Long) product.get("price");
 
                 return Map.of(
-                        "cartItemId", cartItemId,
-                        "productId", productId,
-                        "quantity", quantity,
-                        "subtotal", quantity * price,
-                        "updatedAt", updatedAt
+                        "data", Map.of(
+                            "cartItemId", cartItemId,
+                            "productId", productId,
+                            "quantity", quantity,
+                            "subtotal", quantity * price,
+                            "updatedAt", updatedAt
+                        )
                 );
             }
         }
@@ -230,11 +244,17 @@ public class MockCartController {
     ) {
         Map<String, Object> carts = InMemoryDataStore.CARTS.getOrDefault(userId, new HashMap<>());
         if(CollectionUtils.isEmpty(carts)) {
-            return Map.of("error", "장바구니가 비어있습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
         List<Map<String, Object>> cartItems = InMemoryDataStore.CART_ITEMS.get((Long)carts.get("cartId"));
         if (cartItems == null) {
-            return Map.of("error", "장바구니가 비어있습니다");
+            return Map.of(
+                "code", "EMPTY_CART",
+                "message", "장바구니가 비어있습니다"
+            );
         }
 
         boolean removed = cartItems.removeIf(item -> cartItemId.equals(item.get("cartItemId")));

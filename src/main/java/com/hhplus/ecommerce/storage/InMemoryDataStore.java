@@ -18,6 +18,7 @@ public class InMemoryDataStore {
     private static final AtomicLong cartItemIdSeq = new AtomicLong(1);
     private static final AtomicLong paymentIdSeq = new AtomicLong(1);
     private static final AtomicLong userCouponIdSeq = new AtomicLong(1);
+    private static final AtomicLong orderItemIdSeq = new AtomicLong(1);
 
     // ===== 상품 데이터 =====
     public static final Map<Long, Map<String, Object>> PRODUCTS = new ConcurrentHashMap<>();
@@ -127,6 +128,7 @@ public class InMemoryDataStore {
 
     // ===== 주문 데이터 =====
     public static final Map<Long, Map<String, Object>> ORDERS = new ConcurrentHashMap<>();
+    public static final Map<Long, List<Map<String, Object>>> ORDER_ITEMS = new ConcurrentHashMap<>();
 
     // ===== 결제 데이터 =====
     public static final Map<Long, Map<String, Object>> PAYMENTS = new ConcurrentHashMap<>();
@@ -194,6 +196,10 @@ public class InMemoryDataStore {
 
     public static Long nextUserCouponId() {
         return userCouponIdSeq.getAndIncrement();
+    }
+
+    public static Long nextOrderItemId() {
+        return orderItemIdSeq.getAndIncrement();
     }
 
     // ===== 주문번호 생성 =====

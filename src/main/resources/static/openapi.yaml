@@ -331,6 +331,11 @@ paths:
               example:
                 code: INSUFFICIENT_STOCK
                 message: 재고가 부족합니다
+                details:
+                  productId: 1
+                  productName: MacBook Pro
+                  requestedQuantity: 5
+                  availableStock: 3
 
     get:
       tags:
@@ -432,11 +437,14 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - status
               properties:
-                action:
+                status:
                   type: string
-                  enum: [cancel]
-                reason:
+                  enum: [CANCELLED]
+                  description: 주문 상태 (취소만 가능)
+                cancelReason:
                   type: string
                   description: 취소 사유
       responses:
@@ -448,7 +456,19 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/Order'
+                    type: object
+                    properties:
+                      orderId:
+                        type: integer
+                        format: int64
+                      status:
+                        type: string
+                        enum: [CANCELLED]
+                      cancelledAt:
+                        type: string
+                        format: date-time
+                      cancelReason:
+                        type: string
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -941,9 +961,13 @@ components:
         status:
           type: string
           enum: [PENDING, PAID, CONFIRMED, CANCELLED]
-        finalAmount:
+        itemCount:
+          type: integer
+          description: 주문 항목 수
+        totalAmount:
           type: integer
           format: int64
+          description: 최종 결제 금액
         createdAt:
           type: string
           format: date-time
@@ -993,7 +1017,7 @@ components:
           type: string
         quantity:
           type: integer
-        unitPrice:
+        price:
           type: integer
           format: int64
           description: 주문 시점 단가
@@ -1004,7 +1028,7 @@ components:
     OrderCoupon:
       type: object
       properties:
-        userCouponId:
+        couponId:
           type: integer
           format: int64
         name:
@@ -1046,6 +1070,15 @@ components:
         amount:
           type: integer
           format: int64
+          description: 할인 전 상품 합계 금액
+        discountAmount:
+          type: integer
+          format: int64
+          description: 할인 금액
+        finalAmount:
+          type: integer
+          format: int64
+          description: 최종 결제 금액
         paymentMethod:
           type: string
           enum: [CARD, VIRTUAL_ACCOUNT, PHONE]

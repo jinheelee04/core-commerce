@@ -305,7 +305,7 @@ sequenceDiagram
 **응답 예시:**
 ```json
 {
-  "error": "PAYMENT_FAILED",
+  "code": "PAYMENT_FAILED",
   "message": "결제에 실패했습니다",
   "details": {
     "failReason": "카드 한도 초과",
@@ -348,7 +348,7 @@ sequenceDiagram
 **응답:**
 ```json
 {
-  "error": "INSUFFICIENT_STOCK",
+  "code": "INSUFFICIENT_STOCK",
   "message": "재고가 부족합니다",
   "details": {
     "productId": 1,
@@ -369,7 +369,7 @@ sequenceDiagram
 **응답:**
 ```json
 {
-  "error": "ORDER_ALREADY_PAID",
+  "code": "ORDER_ALREADY_PAID",
   "message": "이미 결제가 완료된 주문입니다",
   "details": {
     "currentStatus": "PAID",
@@ -387,7 +387,7 @@ sequenceDiagram
 **응답:**
 ```json
 {
-  "error": "PAYMENT_AMOUNT_MISMATCH",
+  "code": "PAYMENT_AMOUNT_MISMATCH",
   "message": "결제 금액이 주문 금액과 일치하지 않습니다",
   "details": {
     "expectedAmount": 4980000,
