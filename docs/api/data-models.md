@@ -32,7 +32,7 @@ erDiagram
     COUPON ||--o{ USER_COUPON : "issued as"
 
     USER {
-        bigint user_id PK
+        bigint id PK
         string email UK
         string name
         string phone
@@ -41,7 +41,7 @@ erDiagram
     }
 
     PRODUCT {
-        bigint product_id PK
+        bigint id PK
         string name
         text description
         bigint price
@@ -54,14 +54,14 @@ erDiagram
     }
 
     CART {
-        bigint cart_id PK
+        bigint id PK
         bigint user_id FK
         timestamp created_at
         timestamp updated_at
     }
 
     CART_ITEM {
-        bigint cart_item_id PK
+        bigint id PK
         bigint cart_id FK
         bigint product_id FK
         int quantity
@@ -70,7 +70,7 @@ erDiagram
     }
 
     ORDER {
-        bigint order_id PK
+        bigint id PK
         bigint user_id FK
         string order_number UK
         string status
@@ -88,7 +88,7 @@ erDiagram
     }
 
     ORDER_ITEM {
-        bigint order_item_id PK
+        bigint id PK
         bigint order_id FK
         bigint product_id FK
         int quantity
@@ -99,7 +99,7 @@ erDiagram
     }
 
     PAYMENT {
-        bigint payment_id PK
+        bigint id PK
         bigint order_id FK
         bigint amount
         string payment_method
@@ -113,7 +113,7 @@ erDiagram
     }
 
     COUPON {
-        bigint coupon_id PK
+        bigint id PK
         string code UK
         string name
         text description
@@ -131,7 +131,7 @@ erDiagram
     }
 
     USER_COUPON {
-        bigint user_coupon_id PK
+        bigint id PK
         bigint coupon_id FK
         bigint user_id FK
         bigint order_id FK
@@ -143,7 +143,7 @@ erDiagram
     }
 
     INVENTORY {
-        bigint inventory_id PK
+        bigint id PK
         bigint product_id FK
         int stock
         int reserved_stock
@@ -164,7 +164,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `user_id` | BIGINT | NO | AUTO_INCREMENT | 사용자 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 사용자 ID (PK) |
 | `email` | VARCHAR(255) | NO | - | 이메일 (UK) |
 | `name` | VARCHAR(100) | NO | - | 사용자 이름 |
 | `phone` | VARCHAR(20) | YES | - | 전화번호 |
@@ -172,7 +172,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `user_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `email`
 
 ---
@@ -183,7 +183,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `product_id` | BIGINT | NO | AUTO_INCREMENT | 상품 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 상품 ID (PK) |
 | `name` | VARCHAR(255) | NO | - | 상품명 |
 | `description` | TEXT | YES | - | 상품 설명 |
 | `price` | BIGINT | NO | - | 가격 (원 단위) |
@@ -195,7 +195,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `product_id`
+- PRIMARY KEY: `id`
 
 **상태 값**
 - `AVAILABLE`: 판매 가능
@@ -209,13 +209,13 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `cart_id` | BIGINT | NO | AUTO_INCREMENT | 장바구니 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 장바구니 ID (PK) |
 | `user_id` | BIGINT | NO | - | 사용자 ID (FK) |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `cart_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `user_id` (1 사용자 = 1 장바구니)
 
 ---USER_COUPON
@@ -226,7 +226,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `cart_item_id` | BIGINT | NO | AUTO_INCREMENT | 장바구니 항목 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 장바구니 항목 ID (PK) |
 | `cart_id` | BIGINT | NO | - | 장바구니 ID (FK) |
 | `product_id` | BIGINT | NO | - | 상품 ID (FK) |
 | `quantity` | INT | NO | 1 | 수량 |
@@ -234,7 +234,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `cart_item_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `(cart_id, product_id)` (장바구니 내 상품 중복 방지)
 
 ---
@@ -245,7 +245,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `order_id` | BIGINT | NO | AUTO_INCREMENT | 주문 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 주문 ID (PK) |
 | `user_id` | BIGINT | NO | - | 사용자 ID (FK) |
 | `order_number` | VARCHAR(50) | NO | - | 주문번호 (UK) |
 | `status` | VARCHAR(20) | NO | 'PENDING' | 주문 상태 |
@@ -262,7 +262,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `order_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `order_number`
 
 **상태 값**
@@ -285,7 +285,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `order_item_id` | BIGINT | NO | AUTO_INCREMENT | 주문 항목 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 주문 항목 ID (PK) |
 | `order_id` | BIGINT | NO | - | 주문 ID (FK) |
 | `product_id` | BIGINT | NO | - | 상품 ID (FK) |
 | `quantity` | INT | NO | - | 수량 |
@@ -295,7 +295,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `order_item_id`
+- PRIMARY KEY: `id`
 
 ---
 
@@ -305,7 +305,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `payment_id` | BIGINT | NO | AUTO_INCREMENT | 결제 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 결제 ID (PK) |
 | `order_id` | BIGINT | NO | - | 주문 ID (FK) |
 | `amount` | BIGINT | NO | - | 결제 금액 |
 | `payment_method` | VARCHAR(20) | NO | - | 결제 수단 |
@@ -318,7 +318,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `payment_id`
+- PRIMARY KEY: `id`
 
 **상태 값**
 - `PENDING`: 결제 대기
@@ -338,7 +338,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `coupon_id` | BIGINT | NO | AUTO_INCREMENT | 쿠폰 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 쿠폰 ID (PK) |
 | `code` | VARCHAR(50) | NO | - | 쿠폰 코드 (UK) |
 | `name` | VARCHAR(255) | NO | - | 쿠폰명 |
 | `description` | TEXT | YES | - | 설명 |
@@ -355,7 +355,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `coupon_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `code`
 
 **할인 타입**
@@ -375,7 +375,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `user_coupon_id` | BIGINT | NO | AUTO_INCREMENT | 사용자 쿠폰 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 사용자 쿠폰 ID (PK) |
 | `coupon_id` | BIGINT | NO | - | 쿠폰 ID (FK) |
 | `user_id` | BIGINT | NO | - | 사용자 ID (FK) |
 | `order_id` | BIGINT | YES | - | 주문 ID (FK) |
@@ -386,7 +386,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `user_coupon_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `(coupon_id, user_id)` (1인 1매 제한)
 
 ---
@@ -397,7 +397,7 @@ erDiagram
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
-| `inventory_id` | BIGINT | NO | AUTO_INCREMENT | 재고 ID (PK) |
+| `id` | BIGINT | NO | AUTO_INCREMENT | 재고 ID (PK) |
 | `product_id` | BIGINT | NO | - | 상품 ID (FK, UK) |
 | `stock` | INT | NO | 0 | 현재 재고 |
 | `reserved_stock` | INT | NO | 0 | 예약 재고 |
@@ -406,7 +406,7 @@ erDiagram
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
 **제약조건**
-- PRIMARY KEY: `inventory_id`
+- PRIMARY KEY: `id`
 - UNIQUE KEY: `product_id` (1 상품 = 1 재고)
 
 **계산 필드**

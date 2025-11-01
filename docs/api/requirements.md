@@ -83,16 +83,16 @@
 
 | 엔터티 | 주요 필드 | 설명 |
 |---------|------------|------|
-| **User** | user_id, name | 사용자 기본정보 |
-| **Product** | product_id, name, price, category | 상품 기본 정보 |
-| **Cart** | cart_id, user_id | 사용자별 장바구니 |
-| **CartItem** | cart_item_id, cart_id, product_id, quantity | 장바구니 상품 정보 |
-| **Order** | order_id, user_id, total_price, status | 주문 정보 |
-| **OrderItem** | order_item_id, order_id, product_id, quantity, price | 주문별 상품 구성 |
-| **Payment** | payment_id, order_id, amount, status | 결제(Mock) |
-| **Coupon** | coupon_id, name, discount_value, expiry_date | 쿠폰 정의 |
-| **UserCoupon** | user_coupon_id, coupon_id, user_id, is_used | 사용자 쿠폰 내역 |
-| **Inventory** | product_id, stock, reserved_stock | 재고 관리 (Product와 1:1 관계) |
+| **User** | id, name | 사용자 기본정보 |
+| **Product** | id, name, price, category | 상품 기본 정보 |
+| **Cart** | id, user_id | 사용자별 장바구니 |
+| **CartItem** | id, cart_id, product_id, quantity | 장바구니 상품 정보 |
+| **Order** | id, user_id, total_price, status | 주문 정보 |
+| **OrderItem** | id, order_id, product_id, quantity, price | 주문별 상품 구성 |
+| **Payment** | id, order_id, amount, status | 결제(Mock) |
+| **Coupon** | id, name, discount_value, expiry_date | 쿠폰 정의 |
+| **UserCoupon** | id, coupon_id, user_id, is_used | 사용자 쿠폰 내역 |
+| **Inventory** | id, product_id, stock, reserved_stock | 재고 관리 (Product와 1:1 관계) |
 
 ---
 
@@ -116,13 +116,13 @@
 | RS-04 | 재고 부족 검증 | `stock - reserved_stock < 주문수량` 시 주문 실패 |
 
 ### 3️⃣ API 설계 표준
-| 항목 | 규칙 |
-| --- | --- |
-| 페이징 | `page` (0-based), `size` (20), `sort` |
-| 정렬 옵션 | 상품: `price,asc`, `createdAt,desc`, `popular` 등 |
-| 필터링 | `category`, `minPrice`, `maxPrice`, `keyword` |
-| HTTP 상태코드 | 200, 201, 400, 404, 409, 500 |
-| 에러 응답 포맷 | `{ "error": "ERROR_CODE", "message": "상세 메시지" }` |
+| 항목 | 규칙                                                     |
+| --- |--------------------------------------------------------|
+| 페이징 | `page` (0-based), `size` (20), `sort`                  |
+| 정렬 옵션 | 상품: `price,asc`, `createdAt,desc`, `popular` 등         |
+| 필터링 | `category`, `minPrice`, `maxPrice`, `keyword`          |
+| HTTP 상태코드 | 200, 201, 400, 404, 409, 500                           |
+| 에러 응답 포맷 | `{ "code": "ERROR_CODE", "message": "상세 메시지" }`           |
 | 성공 응답 포맷 | `{ "data": {...}, "meta": { "page": 0, "size": 20 } }` |
 
 ### 4️⃣ 주문 상태 전이 규칙
