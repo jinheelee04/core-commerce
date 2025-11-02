@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: ecommerce
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+
+mock:
+  payment:
+    url: http://localhost:8080/mock/api/v1/payments/process

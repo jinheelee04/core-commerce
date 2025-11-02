@@ -1,0 +1,22 @@
+package com.hhplus.ecommerce.domain.coupon.exception;
+
+import com.hhplus.ecommerce.global.common.exception.ErrorCode;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
+@AllArgsConstructor
+public enum CouponErrorCode implements ErrorCode {
+    COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "COUPON_NOT_FOUND", "쿠폰을 찾을 수 없습니다"),
+    COUPON_INACTIVE(HttpStatus.BAD_REQUEST, "COUPON_INACTIVE", "발급할 수 없는 쿠폰입니다"),
+    COUPON_OUT_OF_STOCK(HttpStatus.BAD_REQUEST, "COUPON_OUT_OF_STOCK", "쿠폰이 모두 소진되었습니다"),
+    COUPON_ALREADY_ISSUED(HttpStatus.BAD_REQUEST, "COUPON_ALREADY_ISSUED", "이미 발급받은 쿠폰입니다"),
+    COUPON_NOT_STARTED(HttpStatus.BAD_REQUEST, "COUPON_NOT_STARTED", "아직 발급이 시작되지 않은 쿠폰입니다"),
+    COUPON_EXPIRED(HttpStatus.BAD_REQUEST, "COUPON_EXPIRED", "쿠폰 발급 기간이 만료되었습니다"),
+    COUPON_MIN_ORDER_AMOUNT_NOT_MET(HttpStatus.BAD_REQUEST, "COUPON_MIN_ORDER_AMOUNT_NOT_MET", "쿠폰 사용을 위한 최소 주문 금액을 충족하지 못했습니다");
+
+    private final HttpStatus status;
+    private final String code;
+    private final String message;
+}
