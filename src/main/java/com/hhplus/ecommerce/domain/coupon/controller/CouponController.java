@@ -1,22 +1,39 @@
 package com.hhplus.ecommerce.domain.coupon.controller;
 
+import com.hhplus.ecommerce.domain.coupon.dto.CouponResponse;
+import com.hhplus.ecommerce.domain.coupon.dto.IssueCouponRequest;
+import com.hhplus.ecommerce.domain.coupon.dto.UserCouponResponse;
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
-import com.hhplus.ecommerce.global.common.dto.ApiResponse;
+import com.hhplus.ecommerce.global.common.dto.CommonResponse;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import com.hhplus.ecommerce.global.storage.InMemoryDataStore;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Tag(name = "쿠폰 API", description = "쿠폰 발급 및 조회 관련 API")
+@SecurityRequirement(name = "X-User-Id")
 @RestController
 @RequestMapping("/api/v1")
 public class CouponController {
 
+    @Operation(summary = "사용 가능한 쿠폰 조회", description = "발급 가능한 활성 쿠폰 목록을 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/coupons/available")
-    public ApiResponse<List<Map<String, Object>>> getCoupons( @RequestHeader("X-User-Id") Long userId,
-                                           @RequestParam(required = false) Long orderAmount) {
-        List<Map<String, Object>> activeCoupons = new ArrayList<>();
+    public CommonResponse<List<CouponResponse>> getCoupons(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "주문 금액 (최소 금액 필터링용)", example = "50000")
+            @RequestParam(required = false) Long orderAmount) {
+        List<CouponResponse> activeCoupons = new ArrayList<>();
         List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.computeIfAbsent(
                 userId, k -> new ArrayList<>()
         );
@@ -32,18 +49,26 @@ public class CouponController {
 
             boolean isIssued = userCoupons.stream().anyMatch(uc -> uc.get("couponId").equals(coupon.get("couponId")));
 
-            if(!isIssued) activeCoupons.add(coupon);
+            if(!isIssued) {
+                activeCoupons.add(toCouponResponse(coupon));
+            }
         }
 
-        return ApiResponse.of(activeCoupons);
+        return CommonResponse.of(activeCoupons);
     }
 
+    @Operation(summary = "쿠폰 발급 (선착순)", description = "선착순으로 쿠폰을 발급받습니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "발급 성공"),
+            @ApiResponse(responseCode = "409", description = "중복 발급 또는 수량 소진"),
+            @ApiResponse(responseCode = "400", description = "발급 기간 오류 또는 만료된 쿠폰")
+    })
     @PostMapping("/users/me/coupons")
-    public ApiResponse<Map<String, Object>> issueCoupon(
-            @RequestHeader("X-User-Id") Long userId,
-            @RequestBody Map<String, Object> request
+    public CommonResponse<UserCouponResponse> issueCoupon(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @RequestBody IssueCouponRequest request
     ) {
-        Long couponId = Long.parseLong(request.get("couponId").toString());
+        Long couponId = request.couponId();
         // 1. 쿠폰 확인
         Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponId);
         if (coupon == null) {
@@ -101,30 +126,37 @@ public class CouponController {
 
             // 잔여 수량 감소
             coupon.put("remainingQuantity", remaining - 1);
-            return ApiResponse.of(Map.ofEntries(
-                        Map.entry("userCouponId", userCouponId),
-                        Map.entry("couponId", couponId),
-                        Map.entry("userId", userId),
-                        Map.entry("code",  coupon.get("code")),
-                        Map.entry("name",  coupon.get("name")),
-                        Map.entry("discountType", coupon.get("discountType")),
-                        Map.entry("discountValue", coupon.get("discountValue")),
-                        Map.entry("minOrderAmount", coupon.get("minOrderAmount")),
-                        Map.entry("maxDiscountAmount", coupon.get("maxDiscountAmount")),
-                        Map.entry("isUsed", false),
-                        Map.entry("issuedAt", issuedAt),
-                        Map.entry("expiresAt", expiresAt)
-                    ));
+
+            return CommonResponse.of(new UserCouponResponse(
+                    userCouponId,
+                    couponId,
+                    userId,
+                    (String) coupon.get("code"),
+                    (String) coupon.get("name"),
+                    (String) coupon.get("discountType"),
+                    (Integer) coupon.get("discountValue"),
+                    (Long) coupon.get("minOrderAmount"),
+                    (Long) coupon.get("maxDiscountAmount"),
+                    false,
+                    issuedAt,
+                    null,
+                    expiresAt
+            ));
         }
     }
 
+    @Operation(summary = "보유 쿠폰 조회", description = "사용자가 보유한 쿠폰 목록을 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/users/me/coupons")
-    public ApiResponse<List<Map<String, Object>>> getMyCoupons(
-            @RequestHeader("X-User-Id") Long userId,
+    public CommonResponse<List<UserCouponResponse>> getMyCoupons(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "사용 여부 필터 (true: 사용됨, false: 미사용)", example = "false")
             @RequestParam(required = false) Boolean isUsed
     ) {
         List<Map<String, Object>> userCoupons = InMemoryDataStore.USER_COUPONS.getOrDefault(userId, new ArrayList<>());
-        List<Map<String, Object>> result = new ArrayList<>();
+        List<UserCouponResponse> result = new ArrayList<>();
 
         for (Map<String, Object> uc : userCoupons) {
             boolean used = (Boolean) uc.getOrDefault("isUsed", false);
@@ -139,22 +171,42 @@ public class CouponController {
             Map<String, Object> coupon = InMemoryDataStore.COUPONS.get(couponId);
 
             if (coupon != null) {
-                Map<String, Object> enriched = new HashMap<>(uc);
-                enriched.put("userCouponId", uc.get("userCouponId"));
-                enriched.put("couponId", couponId);
-                enriched.put("userId", userId);
-                enriched.put("code", coupon.get("code"));
-                enriched.put("name", coupon.get("name"));
-                enriched.put("discountType", coupon.get("discountType"));
-                enriched.put("discountValue", coupon.get("discountValue"));
-                enriched.put("minOrderAmount", coupon.get("minOrderAmount"));
-                enriched.put("isUsed", used);
-                enriched.put("issuedAt", uc.get("issuedAt"));
-                enriched.put("expiresAt", uc.get("expiresAt"));
-                result.add(enriched);
+                result.add(new UserCouponResponse(
+                        (Long) uc.get("userCouponId"),
+                        couponId,
+                        userId,
+                        (String) coupon.get("code"),
+                        (String) coupon.get("name"),
+                        (String) coupon.get("discountType"),
+                        (Integer) coupon.get("discountValue"),
+                        (Long) coupon.get("minOrderAmount"),
+                        (Long) coupon.get("maxDiscountAmount"),
+                        used,
+                        (String) uc.get("issuedAt"),
+                        (String) uc.get("usedAt"),
+                        (String) uc.get("expiresAt")
+                ));
             }
         }
 
-        return ApiResponse.of(result);
+        return CommonResponse.of(result);
+    }
+
+    private CouponResponse toCouponResponse(Map<String, Object> coupon) {
+        return new CouponResponse(
+                (Long) coupon.get("couponId"),
+                (String) coupon.get("code"),
+                (String) coupon.get("name"),
+                (String) coupon.get("description"),
+                (String) coupon.get("discountType"),
+                (Integer) coupon.get("discountValue"),
+                (Long) coupon.get("minOrderAmount"),
+                (Long) coupon.get("maxDiscountAmount"),
+                (Integer) coupon.get("totalQuantity"),
+                (Integer) coupon.get("remainingQuantity"),
+                (String) coupon.get("startsAt"),
+                (String) coupon.get("endsAt"),
+                (String) coupon.get("status")
+        );
     }
 }

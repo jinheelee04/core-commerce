@@ -1,10 +1,20 @@
 package com.hhplus.ecommerce.domain.payment.controller;
 
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
+import com.hhplus.ecommerce.domain.payment.dto.PaymentRequest;
+import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
-import com.hhplus.ecommerce.global.common.dto.ApiResponse;
+import com.hhplus.ecommerce.global.common.dto.CommonResponse;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import com.hhplus.ecommerce.global.storage.InMemoryDataStore;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +23,8 @@ import org.springframework.web.client.RestClient;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Tag(name = "결제 API", description = "결제 처리 관련 API")
+@SecurityRequirement(name = "X-User-Id")
 @RestController
 @RequestMapping("/api/v1/payments")
 public class PaymentController {
@@ -23,10 +35,16 @@ public class PaymentController {
     @Value("${mock.payment.url}")
     private String mockPaymentUrl;
 
+    @Operation(summary = "결제 요청", description = "주문에 대한 결제를 처리합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "결제 성공"),
+            @ApiResponse(responseCode = "400", description = "주문 상태 오류 또는 금액 불일치"),
+            @ApiResponse(responseCode = "408", description = "결제 타임아웃")
+    })
     @PostMapping
-    public ApiResponse<Map<String, Object>> processPayment(@RequestBody Map<String, Object> request) {
-        Long orderId = ((Number) request.get("orderId")).longValue();
-        String paymentMethod = (String) request.get("paymentMethod");
+    public CommonResponse<PaymentResponse> processPayment(@RequestBody PaymentRequest request) {
+        Long orderId = request.orderId();
+        String paymentMethod = request.paymentMethod();
 
         // 1. 주문 조회
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
@@ -91,7 +109,7 @@ public class PaymentController {
 
         InMemoryDataStore.PAYMENTS.put(paymentId, payment);
 
-        return ApiResponse.of(payment);
+        return CommonResponse.of(toPaymentResponse(payment));
     }
 
     private void handlePaymentSuccess(Map<String, Object> order, Map<String, Object> payment, Map<String, Object> pgResponse) {
@@ -159,22 +177,53 @@ public class PaymentController {
         }
     }
 
+    @Operation(summary = "결제 상세 조회", description = "결제 ID로 결제 정보를 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "결제 정보를 찾을 수 없음")
+    })
     @GetMapping("/{paymentId}")
-    public ApiResponse<Map<String, Object>> getPayment(@PathVariable Long paymentId) {
+    public CommonResponse<PaymentResponse> getPayment(
+            @Parameter(description = "결제 ID", example = "789", required = true)
+            @PathVariable Long paymentId) {
         Map<String, Object> payment = InMemoryDataStore.PAYMENTS.get(paymentId);
         if (payment == null) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
         }
-        return ApiResponse.of(payment);
+        return CommonResponse.of(toPaymentResponse(payment));
     }
 
+    @Operation(summary = "주문별 결제 조회 (deprecated)", description = "주문 ID로 결제 정보를 조회합니다. GET /orders/{orderId}/payment 사용을 권장합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "결제 내역 없음")
+    })
     @GetMapping("/order/{orderId}")
-    public ApiResponse<Map<String, Object>> getPaymentByOrder(@PathVariable Long orderId) {
+    public CommonResponse<PaymentResponse> getPaymentByOrder(
+            @Parameter(description = "주문 ID", example = "456", required = true)
+            @PathVariable Long orderId) {
         for (Map<String, Object> payment : InMemoryDataStore.PAYMENTS.values()) {
             if (orderId.equals(payment.get("orderId"))) {
-                return ApiResponse.of(payment);
+                return CommonResponse.of(toPaymentResponse(payment));
             }
         }
         throw new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
+    }
+
+    private PaymentResponse toPaymentResponse(Map<String, Object> payment) {
+        return new PaymentResponse(
+                (Long) payment.get("paymentId"),
+                (Long) payment.get("orderId"),
+                (Long) payment.get("amount"),
+                (Long) payment.get("discountAmount"),
+                (Long) payment.get("finalAmount"),
+                (String) payment.get("paymentMethod"),
+                (String) payment.get("status"),
+                (String) payment.get("transactionId"),
+                (String) payment.get("failReason"),
+                (String) payment.get("paidAt"),
+                (String) payment.get("failedAt"),
+                (String) payment.get("createdAt")
+        );
     }
 }

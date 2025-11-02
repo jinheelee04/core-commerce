@@ -2,31 +2,47 @@ package com.hhplus.ecommerce.domain.order.controller;
 
 import com.hhplus.ecommerce.domain.cart.exception.CartErrorCode;
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.domain.order.dto.*;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
+import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
 import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
-import com.hhplus.ecommerce.global.common.dto.ApiResponse;
+import com.hhplus.ecommerce.global.common.dto.CommonResponse;
 import com.hhplus.ecommerce.global.common.dto.PageMeta;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import com.hhplus.ecommerce.global.storage.InMemoryDataStore;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
+@Tag(name = "주문 API", description = "주문 생성 및 관리 관련 API")
+@SecurityRequirement(name = "X-User-Id")
 @RestController
 @RequestMapping("/api/v1/orders")
 public class OrderController {
 
+    @Operation(summary = "주문 생성", description = "장바구니 항목들로 주문을 생성합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "주문 생성 성공"),
+            @ApiResponse(responseCode = "400", description = "빈 장바구니 또는 쿠폰 오류"),
+            @ApiResponse(responseCode = "409", description = "재고 부족")
+    })
     @PostMapping
-    public ApiResponse<Map<String, Object>> createOrder(
-            @RequestHeader("X-User-Id") Long userId,
-            @RequestBody Map<String, Object> request
+    public CommonResponse<OrderResponse> createOrder(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @RequestBody CreateOrderRequest request
     ) {
-        @SuppressWarnings("unchecked")
-        List<Integer> cartItemIds = (List<Integer>) request.get("cartItemIds");
-        String deliveryAddress = (String) request.get("deliveryAddress");
-        String deliveryMemo = (String) request.getOrDefault("deliveryMemo", "");
-        Long couponId = request.get("couponId") != null ? ((Number) request.get("couponId")).longValue() : null;
+        List<Long> cartItemIds = request.cartItemIds();
+        String deliveryAddress = request.deliveryAddress();
+        String deliveryMemo = request.deliveryMemo() != null ? request.deliveryMemo() : "";
+        Long couponId = request.couponId();
 
         if (cartItemIds == null || cartItemIds.isEmpty()) {
             throw new BusinessException(CartErrorCode.EMPTY_CART);
@@ -46,10 +62,10 @@ public class OrderController {
         }
 
         List<Map<String, Object>> selectedItems = new ArrayList<>();
-        for (Integer cartItemId : cartItemIds) {
+        for (Long cartItemId : cartItemIds) {
             boolean found = false;
             for (Map<String, Object> cartItem : cartItems) {
-                if (cartItemId.equals(((Number) cartItem.get("cartItemId")).intValue())) {
+                if (cartItemId.equals(((Number) cartItem.get("cartItemId")).longValue())) {
                     selectedItems.add(cartItem);
                     found = true;
                     break;
@@ -209,29 +225,49 @@ public class OrderController {
         InMemoryDataStore.ORDER_ITEMS.put(orderId, orderItems);
 
         // 4. 장바구니에서 주문한 아이템 제거
-        for (Integer cartItemId : cartItemIds) {
-            cartItems.removeIf(item -> cartItemId.equals(((Number) item.get("cartItemId")).intValue()));
+        for (Long cartItemId : cartItemIds) {
+            cartItems.removeIf(item -> cartItemId.equals(((Number) item.get("cartItemId")).longValue()));
         }
 
-        return ApiResponse.of(order);
+        return CommonResponse.of(toOrderResponse(order, orderItems, appliedCoupon));
     }
 
+    @Operation(summary = "주문 상세 조회", description = "주문 ID로 주문 상세 정보를 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "주문을 찾을 수 없음"),
+            @ApiResponse(responseCode = "403", description = "다른 사용자의 주문에 접근 불가")
+    })
     @GetMapping("/{orderId}")
-    public ApiResponse<Map<String, Object>> getOrder(@PathVariable Long orderId) {
+    public CommonResponse<OrderResponse> getOrder(
+            @Parameter(description = "주문 ID", example = "456", required = true)
+            @PathVariable Long orderId) {
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_FOUND);
         }
-        return ApiResponse.of(order);
+        List<Map<String, Object>> orderItems = InMemoryDataStore.ORDER_ITEMS.get(orderId);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> coupon = (Map<String, Object>) order.get("coupon");
+        return CommonResponse.of(toOrderResponse(order, orderItems, coupon));
     }
 
+    @Operation(summary = "주문 이력 조회", description = "사용자의 주문 이력을 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping
-    public ApiResponse<List<Map<String, Object>>> getOrders(
-            @RequestHeader("X-User-Id") Long userId,
+    public CommonResponse<List<OrderSummaryResponse>> getOrders(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "주문 상태 필터", example = "PAID")
             @RequestParam(required = false) String status,
+            @Parameter(description = "시작 날짜", example = "2025-01-01T00:00:00Z")
             @RequestParam(required = false) String startsAt,
+            @Parameter(description = "종료 날짜", example = "2025-12-31T23:59:59Z")
             @RequestParam(required = false) String endsAt,
+            @Parameter(description = "페이지 번호", example = "0")
             @RequestParam(required = false, defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
             @RequestParam(required = false, defaultValue = "20") int size
     ) {
         List<Map<String, Object>> userOrders = new ArrayList<>();
@@ -276,34 +312,41 @@ public class OrderController {
             : new ArrayList<>();
 
         // OrderSummary 형식으로 변환
-        List<Map<String, Object>> orderSummaries = new ArrayList<>();
+        List<OrderSummaryResponse> orderSummaries = new ArrayList<>();
         for (Map<String, Object> order : pagedOrders) {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> items = (List<Map<String, Object>>) order.get("items");
             @SuppressWarnings("unchecked")
             Map<String, Object> pricing = (Map<String, Object>) order.get("pricing");
 
-            Map<String, Object> summary = new HashMap<>();
-            summary.put("orderId", order.get("orderId"));
-            summary.put("orderNumber", order.get("orderNumber"));
-            summary.put("status", order.get("status"));
-            summary.put("itemCount", items != null ? items.size() : 0);
-            summary.put("totalAmount", pricing != null ? pricing.get("finalAmount") : 0L);
-            summary.put("createdAt", order.get("createdAt"));
+            OrderSummaryResponse summary = new OrderSummaryResponse(
+                    (Long) order.get("orderId"),
+                    (String) order.get("orderNumber"),
+                    (String) order.get("status"),
+                    items != null ? items.size() : 0,
+                    pricing != null ? (Long) pricing.get("finalAmount") : 0L,
+                    (String) order.get("createdAt")
+            );
 
             orderSummaries.add(summary);
         }
 
         PageMeta pageMeta = new PageMeta(page, size, totalElements, totalPages);
-        return ApiResponse.of(orderSummaries, pageMeta);
+        return CommonResponse.of(orderSummaries, pageMeta);
     }
 
+    @Operation(summary = "주문 취소", description = "주문을 취소합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "취소 성공"),
+            @ApiResponse(responseCode = "400", description = "이미 결제되었거나 취소된 주문")
+    })
     @PatchMapping("/{orderId}")
-    public ApiResponse<Map<String, Object>> updateOrder(
+    public CommonResponse<CancelOrderResponse> updateOrder(
+            @Parameter(description = "주문 ID", example = "456", required = true)
             @PathVariable Long orderId,
-            @RequestBody Map<String, Object> request
+            @RequestBody UpdateOrderRequest request
     ) {
-        String requestedStatus = (String) request.get("status");
+        String requestedStatus = request.status();
         if (!"CANCELLED".equals(requestedStatus)) {
             throw new BusinessException(OrderErrorCode.INVALID_REQUEST);
         }
@@ -338,7 +381,7 @@ public class OrderController {
             inventory.put("reservedStock", Math.max(0, reserved - quantity));
         }
 
-        String reason = (String) request.getOrDefault("cancelReason", "사용자 요청");
+        String reason = request.cancelReason() != null ? request.cancelReason() : "사용자 요청";
         String cancelledAt = LocalDateTime.now().toString();
 
         order.put("status", "CANCELLED");
@@ -346,16 +389,23 @@ public class OrderController {
         order.put("cancelReason", reason);
 
         // 응답은 필수 필드만 반환
-        return ApiResponse.of(Map.of(
-            "orderId", orderId,
-            "status", "CANCELLED",
-            "cancelledAt", cancelledAt,
-            "cancelReason", reason
+        return CommonResponse.of(new CancelOrderResponse(
+            orderId,
+            "CANCELLED",
+            cancelledAt,
+            reason
         ));
     }
 
+    @Operation(summary = "주문별 결제 조회", description = "주문 ID로 결제 정보를 조회합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "결제 내역 없음")
+    })
     @GetMapping("/{orderId}/payment")
-    public ApiResponse<Map<String, Object>> getOrderPayment(@PathVariable Long orderId) {
+    public CommonResponse<PaymentResponse> getOrderPayment(
+            @Parameter(description = "주문 ID", example = "456", required = true)
+            @PathVariable Long orderId) {
         // 주문 확인
         Map<String, Object> order = InMemoryDataStore.ORDERS.get(orderId);
         if (order == null) {
@@ -365,11 +415,28 @@ public class OrderController {
         // 결제 정보 조회
         for (Map<String, Object> payment : InMemoryDataStore.PAYMENTS.values()) {
             if (orderId.equals(payment.get("orderId"))) {
-                return ApiResponse.of(payment);
+                return CommonResponse.of(toPaymentResponse(payment));
             }
         }
 
         throw new BusinessException(com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode.PAYMENT_NOT_FOUND);
+    }
+
+    private PaymentResponse toPaymentResponse(Map<String, Object> payment) {
+        return new PaymentResponse(
+                (Long) payment.get("paymentId"),
+                (Long) payment.get("orderId"),
+                (Long) payment.get("amount"),
+                (Long) payment.get("discountAmount"),
+                (Long) payment.get("finalAmount"),
+                (String) payment.get("paymentMethod"),
+                (String) payment.get("status"),
+                (String) payment.get("transactionId"),
+                (String) payment.get("failReason"),
+                (String) payment.get("paidAt"),
+                (String) payment.get("failedAt"),
+                (String) payment.get("createdAt")
+        );
     }
 
     private void rollbackInventoryReservation(List<Map<String, Object>> items) {
@@ -383,5 +450,50 @@ public class OrderController {
                 inventory.put("reservedStock", Math.max(0, reserved - quantity));
             }
         }
+    }
+
+    private OrderResponse toOrderResponse(Map<String, Object> order, List<Map<String, Object>> orderItems, Map<String, Object> appliedCoupon) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pricing = (Map<String, Object>) order.get("pricing");
+
+        OrderPricingResponse pricingResponse = new OrderPricingResponse(
+                (Long) pricing.get("itemsTotal"),
+                (Long) pricing.get("discountAmount"),
+                (Long) pricing.get("finalAmount")
+        );
+
+        List<OrderItemResponse> itemResponses = orderItems.stream()
+                .map(item -> new OrderItemResponse(
+                        (Long) item.get("orderItemId"),
+                        (Long) item.get("productId"),
+                        (String) item.get("productName"),
+                        (Integer) item.get("quantity"),
+                        (Long) item.get("price"),
+                        (Long) item.get("subtotal")
+                ))
+                .collect(Collectors.toList());
+
+        OrderCouponResponse couponResponse = null;
+        if (appliedCoupon != null) {
+            couponResponse = new OrderCouponResponse(
+                    (Long) appliedCoupon.get("couponId"),
+                    (String) appliedCoupon.get("name"),
+                    (Long) appliedCoupon.get("discountAmount")
+            );
+        }
+
+        return new OrderResponse(
+                (Long) order.get("orderId"),
+                (Long) order.get("userId"),
+                (String) order.get("orderNumber"),
+                (String) order.get("status"),
+                pricingResponse,
+                itemResponses,
+                couponResponse,
+                (String) order.get("deliveryAddress"),
+                (String) order.get("deliveryMemo"),
+                (String) order.get("createdAt"),
+                (String) order.get("expiresAt")
+        );
     }
 }

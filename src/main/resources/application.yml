@@ -7,7 +7,6 @@ springdoc:
     enabled: true
   swagger-ui:
     path: /swagger-ui.html
-    url: /openapi.yaml
 
 mock:
   payment:
