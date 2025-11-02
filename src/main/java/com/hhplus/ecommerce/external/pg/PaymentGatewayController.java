@@ -1,5 +1,6 @@
-package com.hhplus.ecommerce.domain.payment.controller;
+package com.hhplus.ecommerce.external.pg;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+@Hidden
 @RestController
 @RequestMapping("/mock/api/v1/payments")
 public class PaymentGatewayController {
