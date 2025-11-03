@@ -77,6 +77,31 @@ public class CartService {
         });
     }
 
+    /**
+     * 선택한 장바구니 항목들 조회 (주문 생성용)
+     * 사용자 소유 검증 포함
+     */
+    public List<CartItem> getCartItemsByIds(Long userId, List<Long> cartItemIds) {
+        return cartRepository.findByUserId(userId)
+                .map(cart -> {
+                    List<CartItem> allItems = cartItemRepository.findByCartId(cart.getId());
+                    // 선택한 항목만 필터링
+                    return allItems.stream()
+                            .filter(item -> cartItemIds.contains(item.getId()))
+                            .toList();
+                })
+                .orElse(List.of());
+    }
+
+    /**
+     * 선택한 장바구니 항목들 삭제 (주문 완료 후)
+     */
+    public void removeCartItems(List<Long> cartItemIds) {
+        for (Long cartItemId : cartItemIds) {
+            cartItemRepository.deleteById(cartItemId);
+        }
+    }
+
     public CartResponse getCart(Long userId) {
         return cartRepository.findByUserId(userId)
                 .map(cart -> buildCartResponse(cart, userId))

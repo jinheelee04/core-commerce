@@ -22,4 +22,16 @@ public record OrderSummaryResponse(
         @Schema(description = "주문 생성 시간", example = "2025-01-15T10:30:00")
         String createdAt
 ) {
+    public static OrderSummaryResponse of(Long orderId, String orderNumber, String status,
+                                           Long totalAmount, Integer itemCount,
+                                           java.time.LocalDateTime createdAt) {
+        return new OrderSummaryResponse(
+                orderId,
+                orderNumber,
+                status,
+                itemCount,
+                totalAmount,
+                createdAt != null ? createdAt.toString() : null
+        );
+    }
 }

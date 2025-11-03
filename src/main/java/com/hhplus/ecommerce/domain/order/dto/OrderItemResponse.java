@@ -22,4 +22,8 @@ public record OrderItemResponse(
         @Schema(description = "소계 (원)", example = "3000000")
         Long subtotal
 ) {
+    public static OrderItemResponse of(Long orderItemId, Long productId, String productName,
+                                        Integer quantity, Long price, Long subtotal) {
+        return new OrderItemResponse(orderItemId, productId, productName, quantity, price, subtotal);
+    }
 }

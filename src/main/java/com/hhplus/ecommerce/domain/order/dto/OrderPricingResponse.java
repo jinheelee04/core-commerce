@@ -13,4 +13,7 @@ public record OrderPricingResponse(
         @Schema(description = "최종 결제 금액 (원)", example = "90000")
         Long finalAmount
 ) {
+    public static OrderPricingResponse of(Long itemsTotal, Long discountAmount, Long finalAmount) {
+        return new OrderPricingResponse(itemsTotal, discountAmount, finalAmount);
+    }
 }
