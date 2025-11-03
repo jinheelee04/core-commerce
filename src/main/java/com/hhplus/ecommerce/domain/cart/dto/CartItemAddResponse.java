@@ -22,4 +22,12 @@ public record CartItemAddResponse(
         @Schema(description = "생성/수정 시간", example = "2025-01-15T10:30:00")
         String createdAt
 ) {
+    public static CartItemAddResponse of(Long cartItemId, Long productId, String productName,
+                                          Integer quantity, Long subtotal,
+                                          java.time.LocalDateTime createdAt) {
+        return new CartItemAddResponse(
+                cartItemId, productId, productName, quantity, subtotal,
+                createdAt != null ? createdAt.toString() : null
+        );
+    }
 }
