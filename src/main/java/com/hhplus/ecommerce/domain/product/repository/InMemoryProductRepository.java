@@ -9,9 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * 상품 Repository In-Memory 구현
- */
 @Repository
 public class InMemoryProductRepository implements ProductRepository {
 

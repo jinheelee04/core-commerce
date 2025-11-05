@@ -21,4 +21,34 @@ public class OrderItem {
     public long calculateSubtotal() {
         return unitPrice * quantity;
     }
+
+    public static OrderItem create(Long id, Long productId, String productName, Integer quantity, Long unitPrice) {
+        LocalDateTime now = LocalDateTime.now();
+        long subtotal = unitPrice * quantity;
+
+        return OrderItem.builder()
+                .id(id)
+                .productId(productId)
+                .productName(productName)
+                .quantity(quantity)
+                .unitPrice(unitPrice)
+                .subtotal(subtotal)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    public OrderItem withOrderId(Long orderId) {
+        return OrderItem.builder()
+                .id(this.id)
+                .orderId(orderId)
+                .productId(this.productId)
+                .productName(this.productName)
+                .quantity(this.quantity)
+                .unitPrice(this.unitPrice)
+                .subtotal(this.subtotal)
+                .createdAt(this.createdAt)
+                .updatedAt(this.updatedAt)
+                .build();
+    }
 }

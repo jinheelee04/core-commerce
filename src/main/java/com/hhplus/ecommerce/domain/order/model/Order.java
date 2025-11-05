@@ -78,10 +78,6 @@ public class Order {
                 .sum();
     }
 
-    /**
-     * 주문 항목들의 금액 합계를 계산합니다.
-     * 저장된 subtotal 값을 사용하여 주문 시점의 가격을 보존합니다.
-     */
     public long calculateItemsTotal() {
         if (items == null || items.isEmpty()) return 0L;
         return items.stream()
@@ -89,10 +85,50 @@ public class Order {
                 .sum();
     }
 
-    /**
-     * 최종 결제 금액을 계산합니다. (상품 금액 - 할인 금액)
-     */
     public long calculateFinalAmount() {
         return itemsTotal - discountAmount;
+    }
+
+    public Order withItems(List<OrderItem> items) {
+        return Order.builder()
+                .id(this.id)
+                .userId(this.userId)
+                .orderNumber(this.orderNumber)
+                .status(this.status)
+                .itemsTotal(this.itemsTotal)
+                .discountAmount(this.discountAmount)
+                .finalAmount(this.finalAmount)
+                .deliveryAddress(this.deliveryAddress)
+                .deliveryMemo(this.deliveryMemo)
+                .expiresAt(this.expiresAt)
+                .paidAt(this.paidAt)
+                .cancelledAt(this.cancelledAt)
+                .cancelReason(this.cancelReason)
+                .createdAt(this.createdAt)
+                .updatedAt(this.updatedAt)
+                .items(items != null ? new ArrayList<>(items) : new ArrayList<>())
+                .build();
+    }
+
+    public static Order create(Long id, Long userId, String orderNumber, List<OrderItem> orderItems,
+                               long itemsTotal, long discountAmount, String deliveryAddress, String deliveryMemo) {
+        LocalDateTime now = LocalDateTime.now();
+        long finalAmount = itemsTotal - discountAmount;
+
+        return Order.builder()
+                .id(id)
+                .userId(userId)
+                .orderNumber(orderNumber)
+                .status(OrderStatus.PENDING)
+                .itemsTotal(itemsTotal)
+                .discountAmount(discountAmount)
+                .finalAmount(finalAmount)
+                .deliveryAddress(deliveryAddress)
+                .deliveryMemo(deliveryMemo)
+                .expiresAt(now.plusMinutes(10))
+                .createdAt(now)
+                .updatedAt(now)
+                .items(orderItems != null ? new ArrayList<>(orderItems) : new ArrayList<>())
+                .build();
     }
 }

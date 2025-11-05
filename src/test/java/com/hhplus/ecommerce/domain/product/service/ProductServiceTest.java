@@ -79,7 +79,7 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
 
         // when
-        Product result = productService.getProduct(1L);
+        Product result = productService.getProductEntity(1L);
 
         // then
         assertThat(result).isNotNull();
@@ -95,7 +95,7 @@ class ProductServiceTest {
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> productService.getProduct(999L))
+        assertThatThrownBy(() -> productService.getProductEntity(999L))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ProductErrorCode.PRODUCT_NOT_FOUND);
     }

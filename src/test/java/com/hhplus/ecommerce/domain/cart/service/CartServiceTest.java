@@ -158,7 +158,7 @@ class CartServiceTest {
         void shouldAddNewItemToCart() {
             // Given
             int quantity = 3;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.empty());
             when(cartItemRepository.generateNextId()).thenReturn(cartItemId);
@@ -173,7 +173,7 @@ class CartServiceTest {
             assertThat(response.quantity()).isEqualTo(cartItem.getQuantity());
 
             // Verify all mock interactions
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).generateNextId();
@@ -189,7 +189,7 @@ class CartServiceTest {
         void shouldIncreaseQuantityWhenItemExists() {
             // Given
             int additionalQuantity = 2;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.of(cartItem));
             when(cartItemRepository.save(any(CartItem.class))).thenReturn(cartItem);
@@ -201,7 +201,7 @@ class CartServiceTest {
             assertThat(response).isNotNull();
 
             // Verify all mock interactions
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).save(any(CartItem.class));
@@ -225,7 +225,7 @@ class CartServiceTest {
                     .updatedAt(LocalDateTime.now())
                     .build();
             int quantity = 1;
-            when(productService.getProduct(productId)).thenReturn(outOfStockProduct);
+            when(productService.getProductEntity(productId)).thenReturn(outOfStockProduct);
 
             // When & Then
             assertThatThrownBy(() -> cartService.addItem(userId, productId, quantity))
@@ -233,7 +233,7 @@ class CartServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", ProductErrorCode.PRODUCT_OUT_OF_STOCK);
 
             // Verify product was checked
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
 
             // Ensure no further processing occurred after validation failure
             verify(cartRepository, never()).findByUserId(anyLong());
@@ -247,7 +247,7 @@ class CartServiceTest {
         void shouldCreateCartAndAddItem() {
             // Given
             int quantity = 1;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
             when(cartRepository.generateNextId()).thenReturn(cartId);
             when(cartRepository.save(any(Cart.class))).thenReturn(cart);
@@ -263,7 +263,7 @@ class CartServiceTest {
             assertThat(response.productId()).isEqualTo(productId);
 
             // Verify product validation
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
 
             // Verify cart creation flow
             verify(cartRepository, times(1)).findByUserId(userId);
@@ -589,7 +589,7 @@ class CartServiceTest {
         void shouldHandleMinimumQuantity() {
             // Given
             int quantity = 1;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.empty());
             when(cartItemRepository.generateNextId()).thenReturn(cartItemId);
@@ -602,7 +602,7 @@ class CartServiceTest {
             assertThat(response).isNotNull();
 
             // Verify all interactions occurred
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).generateNextId();
@@ -614,7 +614,7 @@ class CartServiceTest {
         void canAddMoreThanStock() {
             // Given
             int quantity = 1000; // 재고(100)보다 많은 수량
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.empty());
             when(cartItemRepository.generateNextId()).thenReturn(cartItemId);
@@ -627,7 +627,7 @@ class CartServiceTest {
             assertThat(response).isNotNull();
 
             // Verify all interactions occurred (no stock validation in cart)
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).generateNextId();
@@ -639,7 +639,7 @@ class CartServiceTest {
         void shouldThrowExceptionWhenAddItemWithZeroQuantity() {
             // Given
             int quantity = 0;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.empty());
             when(cartItemRepository.generateNextId()).thenReturn(cartItemId);
@@ -650,7 +650,7 @@ class CartServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", CartErrorCode.INVALID_QUANTITY);
 
             // Verify product and cart lookups occurred
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).generateNextId();
@@ -664,7 +664,7 @@ class CartServiceTest {
         void shouldThrowExceptionWhenAddItemWithNegativeQuantity() {
             // Given
             int quantity = -5;
-            when(productService.getProduct(productId)).thenReturn(product);
+            when(productService.getProductEntity(productId)).thenReturn(product);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndProductId(cartId, productId)).thenReturn(Optional.empty());
             when(cartItemRepository.generateNextId()).thenReturn(cartItemId);
@@ -675,7 +675,7 @@ class CartServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", CartErrorCode.INVALID_QUANTITY);
 
             // Verify product and cart lookups occurred
-            verify(productService, times(1)).getProduct(productId);
+            verify(productService, times(1)).getProductEntity(productId);
             verify(cartRepository, times(1)).findByUserId(userId);
             verify(cartItemRepository, times(1)).findByCartIdAndProductId(cartId, productId);
             verify(cartItemRepository, times(1)).generateNextId();

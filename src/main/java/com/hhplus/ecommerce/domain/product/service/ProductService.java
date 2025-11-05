@@ -25,13 +25,13 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
 
-    public Product getProduct(Long id) {
+    public Product getProductEntity(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
     public ProductResponse getProductDetail(Long id) {
-        Product product = getProduct(id);
+        Product product = getProductEntity(id);
         Inventory inventory = getInventory(id);
 
         return ProductResponse.of(
@@ -97,9 +97,40 @@ public class ProductService {
         return inventoryRepository.findLowStockProducts();
     }
 
+    public Map<Long, Inventory> getInventoriesAsMap(List<Long> productIds) {
+        return inventoryRepository.findAll().stream()
+                .filter(inv -> productIds.contains(inv.getProductId()))
+                .collect(Collectors.toMap(Inventory::getProductId, inv -> inv));
+    }
+
+    public Map<Long, Product> getProductsAsMap(List<Long> productIds) {
+        return productRepository.findAll().stream()
+                .filter(p -> productIds.contains(p.getId()))
+                .collect(Collectors.toMap(Product::getId, p -> p));
+    }
+
     private Map<Long, Inventory> loadAllInventoriesAsMap() {
         return inventoryRepository.findAll().stream()
                 .collect(Collectors.toMap(Inventory::getProductId, inv -> inv));
+    }
+
+    public void reserveStock(Long productId, int quantity) {
+        Inventory inventory = getInventory(productId);
+        inventory.reserve(quantity);
+        inventoryRepository.save(inventory);
+    }
+
+
+    public void confirmReservation(Long productId, int quantity) {
+        Inventory inventory = getInventory(productId);
+        inventory.confirmReservation(quantity);
+        inventoryRepository.save(inventory);
+    }
+
+    public void releaseReservation(Long productId, int quantity) {
+        Inventory inventory = getInventory(productId);
+        inventory.releaseReservation(quantity);
+        inventoryRepository.save(inventory);
     }
 
     private void sortProducts(List<Product> products, String sort) {

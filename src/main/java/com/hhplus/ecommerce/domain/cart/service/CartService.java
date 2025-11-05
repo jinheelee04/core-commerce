@@ -33,7 +33,7 @@ public class CartService {
     }
 
     public CartItemAddResponse addItem(Long userId, Long productId, int quantity) {
-        Product product = productService.getProduct(productId);
+        Product product = productService.getProductEntity(productId);
 
         validateProductAvailable(product);
 

@@ -14,6 +14,7 @@ import com.hhplus.ecommerce.domain.product.service.ProductService;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -30,118 +32,63 @@ public class OrderService {
     private final CartService cartService;
     private final ProductService productService;
 
+    public Order getOrderEntity(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.warn("[Order] 주문 조회 실패 - orderId: {}", orderId);
+                    return new BusinessException(OrderErrorCode.ORDER_NOT_FOUND);
+                });
+    }
+
+    public Order requireOrderOwnedByUser(Long userId, Long orderId) {
+        log.debug("[Order] 주문 소유권 검증 - userId: {}, orderId: {}", userId, orderId);
+
+        Order order = getOrderEntity(orderId);
+
+        if (!order.getUserId().equals(userId)) {
+            log.warn("[Order] 주문 접근 권한 없음 - userId: {}, orderId: {}, actualUserId: {}",
+                    userId, orderId, order.getUserId());
+            throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
+        }
+
+        log.debug("[Order] 주문 소유권 검증 완료 - orderId: {}", orderId);
+        return order;
+    }
+
     public OrderResponse createOrder(Long userId, List<Long> cartItemIds, String deliveryAddress, String deliveryMemo) {
-        // 장바구니에서 선택한 항목만 조회
-        List<CartItem> cartItems = cartService.getCartItemsByIds(userId, cartItemIds);
-        if (cartItems.isEmpty()) {
-            throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
-        }
+        log.info("[Order] 주문 생성 시작 - userId: {}, cartItemCount: {}", userId, cartItemIds.size());
 
-        // 상품 정보 일괄 조회
-        List<Long> productIds = cartItems.stream()
-                .map(CartItem::getProductId)
-                .toList();
-        Map<Long, Product> productMap = productService.getProductsAsMap(productIds);
+        List<CartItem> cartItems = getValidCartItems(userId, cartItemIds);
 
-        List<OrderItem> orderItems = new ArrayList<>();
-        long itemsTotal = 0L;
+        Map<Long, Product> productMap = getProductsForOrder(cartItems);
 
-        for (CartItem cartItem : cartItems) {
-            Product product = productMap.get(cartItem.getProductId());
-            if (product == null) {
-                throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
-            }
+        List<OrderItem> orderItems = createOrderItemsWithStockReservation(cartItems, productMap);
 
-            // 재고 예약
-            productService.reserveStock(product.getId(), cartItem.getQuantity());
-
-            long subtotal = product.getPrice() * cartItem.getQuantity();
-            itemsTotal += subtotal;
-
-            OrderItem orderItem = OrderItem.builder()
-                    .id(orderItemRepository.generateNextId())
-                    .productId(product.getId())
-                    .productName(product.getName())
-                    .quantity(cartItem.getQuantity())
-                    .unitPrice(product.getPrice())
-                    .subtotal(subtotal)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-            orderItems.add(orderItem);
-        }
-
-        // 쿠폰 미사용 (현재 단계에서는 할인 없음)
+        long itemsTotal = calculateItemsTotal(orderItems);
         long discountAmount = 0L;
-        long finalAmount = itemsTotal;
+        long finalAmount = itemsTotal - discountAmount;
 
-        Order order = Order.builder()
-                .id(orderRepository.generateNextId())
-                .userId(userId)
-                .orderNumber(orderRepository.generateOrderNumber())
-                .status(OrderStatus.PENDING)
-                .itemsTotal(itemsTotal)
-                .discountAmount(discountAmount)
-                .finalAmount(finalAmount)
-                .deliveryAddress(deliveryAddress)
-                .deliveryMemo(deliveryMemo)
-                .expiresAt(LocalDateTime.now().plusMinutes(10))
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .items(orderItems)
-                .build();
-
+        Order order = buildOrder(userId, orderItems, itemsTotal, discountAmount, finalAmount, deliveryAddress, deliveryMemo);
         Order savedOrder = orderRepository.save(order);
+        log.debug("[Order] 주문 저장 완료 - orderId: {}, orderNumber: {}", savedOrder.getId(), savedOrder.getOrderNumber());
 
-        for (OrderItem item : orderItems) {
-            OrderItem itemWithOrderId = OrderItem.builder()
-                    .id(item.getId())
-                    .orderId(savedOrder.getId())
-                    .productId(item.getProductId())
-                    .productName(item.getProductName())
-                    .quantity(item.getQuantity())
-                    .unitPrice(item.getUnitPrice())
-                    .subtotal(item.getSubtotal())
-                    .createdAt(item.getCreatedAt())
-                    .updatedAt(item.getUpdatedAt())
-                    .build();
-            orderItemRepository.save(itemWithOrderId);
-        }
+        saveOrderItems(savedOrder.getId(), orderItems);
 
-        // 선택한 장바구니 항목만 삭제
         cartService.removeCartItems(cartItemIds);
+
+        log.info("[Order] 주문 생성 완료 - orderId: {}, orderNumber: {}, finalAmount: {}",
+                savedOrder.getId(), savedOrder.getOrderNumber(), finalAmount);
 
         return toOrderResponse(savedOrder);
     }
 
     public OrderResponse getOrder(Long userId, Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        log.debug("[Order] 주문 조회 요청 - userId: {}, orderId: {}", userId, orderId);
 
-        if (!order.getUserId().equals(userId)) {
-            throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
-        }
-
+        Order order = requireOrderOwnedByUser(userId, orderId);
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        Order orderWithItems = Order.builder()
-                .id(order.getId())
-                .userId(order.getUserId())
-                .orderNumber(order.getOrderNumber())
-                .status(order.getStatus())
-                .itemsTotal(order.getItemsTotal())
-                .discountAmount(order.getDiscountAmount())
-                .finalAmount(order.getFinalAmount())
-                .deliveryAddress(order.getDeliveryAddress())
-                .deliveryMemo(order.getDeliveryMemo())
-                .expiresAt(order.getExpiresAt())
-                .paidAt(order.getPaidAt())
-                .cancelledAt(order.getCancelledAt())
-                .cancelReason(order.getCancelReason())
-                .createdAt(order.getCreatedAt())
-                .updatedAt(order.getUpdatedAt())
-                .items(items)
-                .build();
 
+        Order orderWithItems = enrichOrderWithItems(order, items);
         return toOrderResponse(orderWithItems);
     }
 
@@ -154,40 +101,31 @@ public class OrderService {
     }
 
     public CancelOrderResponse cancelOrder(Long userId, Long orderId, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUserId().equals(userId)) {
-            throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
-        }
-
+        log.info("[Order] 주문 취소 요청 (사용자) - userId: {}, orderId: {}, reason: {}", userId, orderId, reason);
+        requireOrderOwnedByUser(userId, orderId);
         return cancelOrderInternal(orderId, reason);
     }
 
-    /**
-     * 주문 취소 (내부 호출용 - 소유권 검증 없음)
-     * PaymentService 등 다른 서비스에서 호출할 때 사용
-     */
     public CancelOrderResponse cancelOrder(Long orderId, String reason) {
+        log.info("[Order] 주문 취소 요청 (시스템) - orderId: {}, reason: {}", orderId, reason);
         return cancelOrderInternal(orderId, reason);
     }
 
     private CancelOrderResponse cancelOrderInternal(Long orderId, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        Order order = getOrderEntity(orderId);
 
         if (!order.isCancellable()) {
+            log.warn("[Order] 취소 불가능한 주문 - orderId: {}, status: {}", orderId, order.getStatus());
             throw new BusinessException(OrderErrorCode.ORDER_ALREADY_CONFIRMED);
         }
 
         order.cancel(reason);
         orderRepository.save(order);
+        log.debug("[Order] 주문 상태 CANCELLED로 변경 완료 - orderId: {}", orderId);
 
-        // 재고 예약 해제
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        for (OrderItem item : items) {
-            productService.releaseReservation(item.getProductId(), item.getQuantity());
-        }
+        releaseStockReservations(orderId);
+
+        log.info("[Order] 주문 취소 완료 - orderId: {}, orderNumber: {}", orderId, order.getOrderNumber());
 
         return CancelOrderResponse.of(
                 order.getId(),
@@ -199,17 +137,17 @@ public class OrderService {
     }
 
     public void completePayment(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        log.info("[Order] 결제 완료 처리 시작 - orderId: {}", orderId);
+
+        Order order = getOrderEntity(orderId);
 
         order.markAsPaid();
         orderRepository.save(order);
+        log.debug("[Order] 주문 상태 PAID로 변경 완료 - orderId: {}", orderId);
 
-        // 재고 예약 확정
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        for (OrderItem item : items) {
-            productService.confirmReservation(item.getProductId(), item.getQuantity());
-        }
+        confirmStockReservations(orderId);
+
+        log.info("[Order] 결제 완료 처리 완료 - orderId: {}, orderNumber: {}", orderId, order.getOrderNumber());
     }
 
     private OrderResponse toOrderResponse(Order order) {
@@ -230,7 +168,6 @@ public class OrderService {
                 order.getFinalAmount()
         );
 
-        // 쿠폰 정보는 주문 애그리거트에 포함되지 않음 (필요시 별도 조회)
         OrderCouponResponse coupon = null;
 
         return OrderResponse.of(
@@ -260,5 +197,100 @@ public class OrderService {
                 order.getTotalQuantity(),
                 order.getCreatedAt()
         );
+    }
+
+    // ========== Private Helper Methods ==========
+
+    private List<CartItem> getValidCartItems(Long userId, List<Long> cartItemIds) {
+        List<CartItem> cartItems = cartService.getCartItemsByIds(userId, cartItemIds);
+        if (cartItems.isEmpty()) {
+            log.warn("[Order] 유효한 장바구니 아이템 없음 - userId: {}, requestedIds: {}", userId, cartItemIds);
+            throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
+        }
+        log.debug("[Order] 장바구니 아이템 조회 완료 - count: {}", cartItems.size());
+        return cartItems;
+    }
+
+    private Map<Long, Product> getProductsForOrder(List<CartItem> cartItems) {
+        List<Long> productIds = cartItems.stream()
+                .map(CartItem::getProductId)
+                .toList();
+        Map<Long, Product> productMap = productService.getProductsAsMap(productIds);
+        log.debug("[Order] 상품 정보 조회 완료 - productCount: {}", productMap.size());
+        return productMap;
+    }
+
+    private List<OrderItem> createOrderItemsWithStockReservation(List<CartItem> cartItems, Map<Long, Product> productMap) {
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = productMap.get(cartItem.getProductId());
+            if (product == null) {
+                log.error("[Order] 상품 정보 없음 - productId: {}", cartItem.getProductId());
+                throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
+            }
+
+            productService.reserveStock(product.getId(), cartItem.getQuantity());
+
+            // 도메인 모델의 정적 팩토리 메서드 사용
+            Long itemId = orderItemRepository.generateNextId();
+            OrderItem orderItem = OrderItem.create(
+                    itemId,
+                    product.getId(),
+                    product.getName(),
+                    cartItem.getQuantity(),
+                    product.getPrice()
+            );
+            orderItems.add(orderItem);
+        }
+
+        log.debug("[Order] 주문 아이템 생성 및 재고 예약 완료 - itemCount: {}", orderItems.size());
+        return orderItems;
+    }
+
+    private long calculateItemsTotal(List<OrderItem> orderItems) {
+        return orderItems.stream()
+                .mapToLong(OrderItem::getSubtotal)
+                .sum();
+    }
+
+    private Order buildOrder(Long userId, List<OrderItem> orderItems, long itemsTotal, long discountAmount,
+                             long finalAmount, String deliveryAddress, String deliveryMemo) {
+        Long orderId = orderRepository.generateNextId();
+        String orderNumber = orderRepository.generateOrderNumber();
+
+        // 도메인 모델의 정적 팩토리 메서드 사용
+        return Order.create(orderId, userId, orderNumber, orderItems,
+                itemsTotal, discountAmount, deliveryAddress, deliveryMemo);
+    }
+
+    private void saveOrderItems(Long orderId, List<OrderItem> orderItems) {
+        for (OrderItem item : orderItems) {
+            // 도메인 모델의 withOrderId 메서드 사용
+            OrderItem itemWithOrderId = item.withOrderId(orderId);
+            orderItemRepository.save(itemWithOrderId);
+        }
+        log.debug("[Order] 주문 아이템 저장 완료 - itemCount: {}", orderItems.size());
+    }
+
+    private Order enrichOrderWithItems(Order order, List<OrderItem> items) {
+        // 도메인 모델의 withItems 메서드 사용
+        return order.withItems(items);
+    }
+
+    private void releaseStockReservations(Long orderId) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : items) {
+            productService.releaseReservation(item.getProductId(), item.getQuantity());
+        }
+        log.debug("[Order] 재고 예약 해제 완료 - orderId: {}, itemCount: {}", orderId, items.size());
+    }
+
+    private void confirmStockReservations(Long orderId) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : items) {
+            productService.confirmReservation(item.getProductId(), item.getQuantity());
+        }
+        log.debug("[Order] 재고 예약 확정 완료 - orderId: {}, itemCount: {}", orderId, items.size());
     }
 }
