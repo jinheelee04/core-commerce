@@ -56,18 +56,23 @@ public class ProductService {
     public PagedResult<ProductResponse> getProducts(ProductCategory category, ProductStatus status, String sort, int page, int size)  {
         List<Product> products = productRepository.findAll();
 
-        if (category != null || status != null) {
-            products = products.stream()
-                    .filter(p -> category == null || p.getCategory() == category)
-                    .filter(p -> status == null || p.getStatus() == status)
-                    .toList();
-        }
-
-        sortProducts(products, sort);
-
         Map<Long, Inventory> inventories = loadAllInventoriesAsMap();
 
-        List<ProductResponse> responses = products.stream()
+        var stream = products.stream();
+
+        if (category != null) {
+            stream = stream.filter(p -> p.getCategory() == category);
+        }
+        if (status != null) {
+            stream = stream.filter(p -> p.getStatus() == status);
+        }
+
+        Comparator<Product> comparator = getComparatorForSort(sort);
+        if (comparator != null) {
+            stream = stream.sorted(comparator);
+        }
+
+        List<ProductResponse> responses = stream
                 .map(p -> {
                     Inventory inv = inventories.getOrDefault(p.getId(), Inventory.empty());
                     return ProductResponse.of(
@@ -152,9 +157,8 @@ public class ProductService {
             default -> Comparator.comparing(Product::getPopularityScore, Comparator.reverseOrder());
         };
 
-        products.sort(comparator);
-
         List<ProductResponse> responses = products.stream()
+                .sorted(comparator)
                 .map(p -> {
                     Inventory inv = inventories.getOrDefault(p.getId(), Inventory.empty());
                     return ProductResponse.of(
@@ -177,10 +181,10 @@ public class ProductService {
         return PagedResult.of(responses, page, size);
     }
 
-    private void sortProducts(List<Product> products, String sort) {
-        if (sort == null || sort.isBlank()) return;
+    private Comparator<Product> getComparatorForSort(String sort) {
+        if (sort == null || sort.isBlank()) return null;
 
-        Comparator<Product> comparator = switch (sort) {
+        return switch (sort) {
             case "price,asc" -> Comparator.comparing(Product::getPrice);
             case "price,desc" -> Comparator.comparing(Product::getPrice).reversed();
             case "name,asc" -> Comparator.comparing(Product::getName);
@@ -190,8 +194,6 @@ public class ProductService {
             case "sales,desc" -> Comparator.comparing(p -> p.getSalesCount() == null ? 0 : p.getSalesCount(), Comparator.reverseOrder());
             default -> null;
         };
-
-        if (comparator != null) products.sort(comparator);
     }
 
 }
