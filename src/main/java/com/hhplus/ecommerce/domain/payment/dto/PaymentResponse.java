@@ -27,6 +27,9 @@ public record PaymentResponse(
         @Schema(description = "실패 사유", example = "한도 초과")
         String failReason,
 
+        @Schema(description = "적용된 쿠폰 정보")
+        PaymentCouponInfo couponInfo,
+
         @Schema(description = "결제 성공 시간", example = "2025-01-15T10:35:00")
         LocalDateTime paidAt,
 
@@ -38,8 +41,8 @@ public record PaymentResponse(
 ) {
     public static PaymentResponse of(Long paymentId, Long orderId, Long amount,
                                       String paymentMethod, String status, String transactionId,
-                                      String failReason, LocalDateTime paidAt, LocalDateTime failedAt,
-                                      LocalDateTime createdAt) {
+                                      String failReason, PaymentCouponInfo couponInfo, LocalDateTime paidAt,
+                                      LocalDateTime failedAt, LocalDateTime createdAt) {
         return new PaymentResponse(
                 paymentId,
                 orderId,
@@ -48,9 +51,26 @@ public record PaymentResponse(
                 status,
                 transactionId,
                 failReason,
+                couponInfo,
                 paidAt,
                 failedAt,
                 createdAt
         );
+    }
+
+    @Schema(description = "결제 쿠폰 정보")
+    public record PaymentCouponInfo(
+            @Schema(description = "쿠폰 ID", example = "10")
+            Long couponId,
+
+            @Schema(description = "쿠폰명", example = "신규 회원 환영 쿠폰")
+            String couponName,
+
+            @Schema(description = "할인 금액 (원)", example = "10000")
+            Long discountAmount
+    ) {
+        public static PaymentCouponInfo of(Long couponId, String couponName, Long discountAmount) {
+            return new PaymentCouponInfo(couponId, couponName, discountAmount);
+        }
     }
 }

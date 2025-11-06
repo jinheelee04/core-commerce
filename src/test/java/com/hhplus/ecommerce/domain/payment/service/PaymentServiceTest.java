@@ -1,5 +1,10 @@
 package com.hhplus.ecommerce.domain.payment.service;
 
+import com.hhplus.ecommerce.domain.coupon.model.Coupon;
+import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
+import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
 import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
@@ -46,6 +51,9 @@ class PaymentServiceTest {
 
     @Mock
     private OrderService orderService;
+
+    @Mock
+    private CouponService couponService;
 
     @Mock(lenient = true)
     private RequestBodyUriSpec requestBodyUriSpec;
@@ -409,5 +417,188 @@ class PaymentServiceTest {
         assertThatThrownBy(() -> paymentService.getPaymentByOrderId(USER_ID, ORDER_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.PAYMENT_NOT_ALLOWED);
+    }
+
+    // ========== 쿠폰 관련 테스트 ==========
+
+    @Test
+    @DisplayName("쿠폰이 적용된 주문 결제 성공 - 응답에 쿠폰 정보 포함")
+    void processPayment_WithCoupon_Success() {
+        // Given
+        Long userCouponId = 10L;
+        Long couponId = 5L;
+        Long discountAmount = 5000L;
+        String couponName = "신규 회원 할인 쿠폰";
+
+        Order orderWithCoupon = Order.builder()
+                .id(ORDER_ID)
+                .userId(USER_ID)
+                .orderNumber("ORD-20250104-002")
+                .status(OrderStatus.PENDING)
+                .itemsTotal(50000L)
+                .discountAmount(discountAmount)
+                .finalAmount(45000L)
+                .userCouponId(userCouponId)
+                .deliveryAddress("서울시 강남구")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        UserCoupon userCoupon = UserCoupon.builder()
+                .id(userCouponId)
+                .couponId(couponId)
+                .userId(USER_ID)
+                .isUsed(true)
+                .issuedAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .build();
+
+        Coupon coupon = Coupon.builder()
+                .id(couponId)
+                .code("WELCOME10")
+                .name(couponName)
+                .discountType(DiscountType.PERCENTAGE)
+                .discountValue(10)
+                .minOrderAmount(10000L)
+                .maxDiscountAmount(10000L)
+                .totalQuantity(100)
+                .remainingQuantity(50)
+                .startsAt(LocalDateTime.now().minusDays(1))
+                .endsAt(LocalDateTime.now().plusDays(30))
+                .status(CouponStatus.ACTIVE)
+                .build();
+
+        given(orderService.requireOrderOwnedByUser(USER_ID, ORDER_ID)).willReturn(orderWithCoupon);
+        given(orderService.getOrderEntity(ORDER_ID)).willReturn(orderWithCoupon);
+        given(couponService.getUserCouponEntity(userCouponId)).willReturn(userCoupon);
+        given(couponService.getCouponEntity(couponId)).willReturn(coupon);
+        given(paymentRepository.findByClientRequestId(CLIENT_REQUEST_ID)).willReturn(Optional.empty());
+        given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.empty());
+        given(paymentRepository.generateNextId()).willReturn(PAYMENT_ID);
+        given(paymentRepository.save(any(Payment.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(paymentRepository.findByTransactionId(TRANSACTION_ID)).willReturn(Optional.empty());
+        given(responseSpec.body(eq(Map.class))).willReturn(createSuccessPgResponse());
+
+        // When
+        PaymentResponse response = paymentService.processPayment(
+                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+        );
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.couponInfo()).isNotNull();
+        assertThat(response.couponInfo().couponId()).isEqualTo(couponId);
+        assertThat(response.couponInfo().couponName()).isEqualTo(couponName);
+        assertThat(response.couponInfo().discountAmount()).isEqualTo(discountAmount);
+
+        verify(orderService).completePayment(ORDER_ID);
+    }
+
+    @Test
+    @DisplayName("쿠폰이 적용된 주문 결제 실패 - 주문 취소로 쿠폰 복구")
+    void processPayment_WithCoupon_Failed_RestoresCoupon() {
+        // Given
+        Long userCouponId = 10L;
+        String failReason = "카드 승인 거부";
+
+        Order orderWithCoupon = Order.builder()
+                .id(ORDER_ID)
+                .userId(USER_ID)
+                .orderNumber("ORD-20250104-003")
+                .status(OrderStatus.PENDING)
+                .itemsTotal(50000L)
+                .discountAmount(5000L)
+                .finalAmount(45000L)
+                .userCouponId(userCouponId)
+                .deliveryAddress("서울시 강남구")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        given(orderService.requireOrderOwnedByUser(USER_ID, ORDER_ID)).willReturn(orderWithCoupon);
+        given(paymentRepository.findByClientRequestId(CLIENT_REQUEST_ID)).willReturn(Optional.empty());
+        given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.empty());
+        given(paymentRepository.generateNextId()).willReturn(PAYMENT_ID);
+        given(paymentRepository.save(any(Payment.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(responseSpec.body(eq(Map.class))).willReturn(createFailedPgResponse(failReason));
+
+        // When
+        PaymentResponse response = paymentService.processPayment(
+                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+        );
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
+        assertThat(response.failReason()).isEqualTo(failReason);
+
+        // 주문 취소 호출 확인 - 주문 취소 시 쿠폰도 자동 복구됨
+        verify(orderService).cancelOrder(ORDER_ID, "결제 실패: " + failReason);
+    }
+
+    @Test
+    @DisplayName("결제 조회 시 쿠폰 정보 포함")
+    void getPayment_WithCoupon_IncludesCouponInfo() {
+        // Given
+        Long userCouponId = 10L;
+        Long couponId = 5L;
+        Long discountAmount = 3000L;
+        String couponName = "첫 구매 할인";
+
+        Payment savedPayment = createSuccessPayment();
+
+        Order orderWithCoupon = Order.builder()
+                .id(ORDER_ID)
+                .userId(USER_ID)
+                .orderNumber("ORD-20250104-004")
+                .status(OrderStatus.PAID)
+                .itemsTotal(30000L)
+                .discountAmount(discountAmount)
+                .finalAmount(27000L)
+                .userCouponId(userCouponId)
+                .deliveryAddress("서울시 강남구")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        UserCoupon userCoupon = UserCoupon.builder()
+                .id(userCouponId)
+                .couponId(couponId)
+                .userId(USER_ID)
+                .isUsed(true)
+                .issuedAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .build();
+
+        Coupon coupon = Coupon.builder()
+                .id(couponId)
+                .code("FIRST3000")
+                .name(couponName)
+                .discountType(DiscountType.FIXED_AMOUNT)
+                .discountValue(3000)
+                .minOrderAmount(20000L)
+                .totalQuantity(50)
+                .remainingQuantity(25)
+                .startsAt(LocalDateTime.now().minusDays(1))
+                .endsAt(LocalDateTime.now().plusDays(30))
+                .status(CouponStatus.ACTIVE)
+                .build();
+
+        given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(savedPayment));
+        given(orderService.requireOrderOwnedByUser(USER_ID, ORDER_ID)).willReturn(orderWithCoupon);
+        given(orderService.getOrderEntity(ORDER_ID)).willReturn(orderWithCoupon);
+        given(couponService.getUserCouponEntity(userCouponId)).willReturn(userCoupon);
+        given(couponService.getCouponEntity(couponId)).willReturn(coupon);
+
+        // When
+        PaymentResponse response = paymentService.getPayment(USER_ID, PAYMENT_ID);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.couponInfo()).isNotNull();
+        assertThat(response.couponInfo().couponId()).isEqualTo(couponId);
+        assertThat(response.couponInfo().couponName()).isEqualTo(couponName);
+        assertThat(response.couponInfo().discountAmount()).isEqualTo(discountAmount);
     }
 }

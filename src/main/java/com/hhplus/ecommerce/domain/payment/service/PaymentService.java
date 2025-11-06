@@ -1,5 +1,8 @@
 package com.hhplus.ecommerce.domain.payment.service;
 
+import com.hhplus.ecommerce.domain.coupon.model.Coupon;
+import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
 import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
@@ -25,6 +28,7 @@ import java.util.Map;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderService orderService;
+    private final CouponService couponService;
     private final RestClient restClient;
 
     @Value("${mock.payment.url}")
@@ -55,7 +59,6 @@ public class PaymentService {
 
         Payment payment = createPendingPayment(orderId, order.getFinalAmount(), paymentMethod, clientRequestId);
         paymentRepository.save(payment);
-        log.debug("[Payment] PENDING 상태 결제 생성 완료 - paymentId: {}, orderId: {}", payment.getId(), orderId);
 
         executePayment(order, payment, paymentMethod);
 
@@ -64,8 +67,6 @@ public class PaymentService {
     }
 
     public PaymentResponse getPayment(Long userId, Long paymentId) {
-        log.debug("[Payment] 결제 조회 요청 - userId: {}, paymentId: {}", userId, paymentId);
-
         Payment payment = getPaymentEntity(paymentId);
         validateOrderOwnership(userId, payment.getOrderId(), "결제 조회");
 
@@ -73,8 +74,6 @@ public class PaymentService {
     }
 
     public PaymentResponse getPaymentByOrderId(Long userId, Long orderId) {
-        log.debug("[Payment] 주문별 결제 조회 요청 - userId: {}, orderId: {}", userId, orderId);
-
         validateOrderOwnership(userId, orderId, "결제 조회");
         Payment payment = paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
@@ -98,8 +97,6 @@ public class PaymentService {
     }
 
     private Order validateOrderForPayment(Long userId, Long orderId) {
-        log.debug("[Payment] 주문 유효성 검증 시작 - userId: {}, orderId: {}", userId, orderId);
-
         Order order;
         try {
             order = orderService.requireOrderOwnedByUser(userId, orderId);
@@ -117,7 +114,6 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.INVALID_ORDER_STATUS);
         }
 
-        log.debug("[Payment] 주문 유효성 검증 완료 - orderId: {}, amount: {}", orderId, order.getFinalAmount());
         return order;
     }
 
@@ -172,8 +168,7 @@ public class PaymentService {
 
     private void handlePaymentSuccess(Order order, Payment payment, Map<String, Object> response) {
         String transactionId = (String) response.get("transactionId");
-        log.debug("[Payment] PG 성공 응답 처리 - orderId: {}, transactionId: {}", order.getId(), transactionId);
-        
+
         Payment existingByTxId = paymentRepository.findByTransactionId(transactionId).orElse(null);
         if (existingByTxId != null) {
             log.warn("[Payment] 중복 transactionId 감지 - transactionId: {}, 기존 paymentId: {}, 현재 paymentId: {}",
@@ -232,6 +227,18 @@ public class PaymentService {
     }
 
     private PaymentResponse toPaymentResponse(Payment payment) {
+        PaymentResponse.PaymentCouponInfo couponInfo = null;
+
+        try {
+            Order order = orderService.getOrderEntity(payment.getOrderId());
+            if (order.getUserCouponId() != null) {
+                couponInfo = getCouponInfo(order.getUserCouponId(), order.getDiscountAmount());
+            }
+        } catch (Exception e) {
+            log.warn("[Payment] 쿠폰 정보 조회 실패 - paymentId: {}, orderId: {}, error: {}",
+                    payment.getId(), payment.getOrderId(), e.getMessage());
+        }
+
         return PaymentResponse.of(
                 payment.getId(),
                 payment.getOrderId(),
@@ -240,9 +247,25 @@ public class PaymentService {
                 payment.getStatus().name(),
                 payment.getTransactionId(),
                 payment.getFailReason(),
+                couponInfo,
                 payment.getPaidAt(),
                 payment.getFailedAt(),
                 payment.getCreatedAt()
         );
+    }
+
+    private PaymentResponse.PaymentCouponInfo getCouponInfo(Long userCouponId, Long discountAmount) {
+        try {
+            UserCoupon userCoupon = couponService.getUserCouponEntity(userCouponId);
+            Coupon coupon = couponService.getCouponEntity(userCoupon.getCouponId());
+            return PaymentResponse.PaymentCouponInfo.of(
+                    coupon.getId(),
+                    coupon.getName(),
+                    discountAmount
+            );
+        } catch (Exception e) {
+            log.warn("[Payment] 쿠폰 정보 조회 실패 - userCouponId: {}, error: {}", userCouponId, e.getMessage());
+            return null;
+        }
     }
 }
