@@ -143,6 +143,7 @@ public class OrderService {
         orderRepository.save(order);
 
         confirmStockReservations(orderId);
+        incrementSalesCount(orderId);
     }
 
     private OrderResponse toOrderResponse(Order order, Coupon coupon, Long discountAmount) {
@@ -303,6 +304,13 @@ public class OrderService {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
             productService.confirmReservation(item.getProductId(), item.getQuantity());
+        }
+    }
+
+    private void incrementSalesCount(Long orderId) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : items) {
+            productService.incrementSalesCount(item.getProductId(), item.getQuantity());
         }
     }
 }

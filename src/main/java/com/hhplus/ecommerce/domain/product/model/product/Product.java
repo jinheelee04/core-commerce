@@ -16,11 +16,27 @@ public class Product {
     private String brand;
     private String imageUrl;
     private ProductStatus status;
+    private Integer viewCount;
+    private Integer salesCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public boolean isAvailable() {
         return status == ProductStatus.AVAILABLE;
+    }
+
+    public void incrementViewCount() {
+        this.viewCount = (this.viewCount == null ? 0 : this.viewCount) + 1;
+    }
+
+    public void incrementSalesCount(int quantity) {
+        this.salesCount = (this.salesCount == null ? 0 : this.salesCount) + quantity;
+    }
+
+    public int getPopularityScore() {
+        int views = this.viewCount == null ? 0 : this.viewCount;
+        int sales = this.salesCount == null ? 0 : this.salesCount;
+        return (views) + (sales * 10);
     }
 
     public void updateStatus(ProductStatus newStatus) {

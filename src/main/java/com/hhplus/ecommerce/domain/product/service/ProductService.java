@@ -34,6 +34,9 @@ public class ProductService {
         Product product = getProductEntity(id);
         Inventory inventory = getInventory(id);
 
+        product.incrementViewCount();
+        productRepository.save(product);
+
         return ProductResponse.of(
                 product.getId(),
                 product.getName(),
@@ -53,7 +56,6 @@ public class ProductService {
     public PagedResult<ProductResponse> getProducts(ProductCategory category, ProductStatus status, String sort, int page, int size)  {
         List<Product> products = productRepository.findAll();
 
-        // TODO: 실제 DB 전환 시, Repository 레벨 필터링으로 개선 필요
         if (category != null || status != null) {
             products = products.stream()
                     .filter(p -> category == null || p.getCategory() == category)
@@ -133,6 +135,48 @@ public class ProductService {
         inventoryRepository.save(inventory);
     }
 
+    public void incrementSalesCount(Long productId, int quantity) {
+        Product product = getProductEntity(productId);
+        product.incrementSalesCount(quantity);
+        productRepository.save(product);
+    }
+
+    public PagedResult<ProductResponse> getPopularProducts(int page, int size, String sortBy) {
+        List<Product> products = productRepository.findAll();
+        Map<Long, Inventory> inventories = loadAllInventoriesAsMap();
+
+        Comparator<Product> comparator = switch (sortBy) {
+            case "views" -> Comparator.comparing(p -> p.getViewCount() == null ? 0 : p.getViewCount(), Comparator.reverseOrder());
+            case "sales" -> Comparator.comparing(p -> p.getSalesCount() == null ? 0 : p.getSalesCount(), Comparator.reverseOrder());
+            case "popular" -> Comparator.comparing(Product::getPopularityScore, Comparator.reverseOrder());
+            default -> Comparator.comparing(Product::getPopularityScore, Comparator.reverseOrder());
+        };
+
+        products.sort(comparator);
+
+        List<ProductResponse> responses = products.stream()
+                .map(p -> {
+                    Inventory inv = inventories.getOrDefault(p.getId(), Inventory.empty());
+                    return ProductResponse.of(
+                            p.getId(),
+                            p.getName(),
+                            p.getDescription(),
+                            p.getPrice(),
+                            p.getCategory().name(),
+                            p.getBrand(),
+                            p.getImageUrl(),
+                            p.getStatus().name(),
+                            inv.getStock(),
+                            inv.getReservedStock(),
+                            inv.getAvailableStock(),
+                            p.getCreatedAt()
+                    );
+                })
+                .toList();
+
+        return PagedResult.of(responses, page, size);
+    }
+
     private void sortProducts(List<Product> products, String sort) {
         if (sort == null || sort.isBlank()) return;
 
@@ -141,6 +185,9 @@ public class ProductService {
             case "price,desc" -> Comparator.comparing(Product::getPrice).reversed();
             case "name,asc" -> Comparator.comparing(Product::getName);
             case "created,desc" -> Comparator.comparing(Product::getCreatedAt).reversed();
+            case "popular" -> Comparator.comparing(Product::getPopularityScore).reversed();
+            case "views,desc" -> Comparator.comparing(p -> p.getViewCount() == null ? 0 : p.getViewCount(), Comparator.reverseOrder());
+            case "sales,desc" -> Comparator.comparing(p -> p.getSalesCount() == null ? 0 : p.getSalesCount(), Comparator.reverseOrder());
             default -> null;
         };
 

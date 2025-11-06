@@ -50,7 +50,7 @@ public class ProductController {
         return ResponseEntity.ok(CommonResponse.of(result.content(), result.meta()));
     }
 
-    @Operation(summary = "상품 상세 조회", description = "상품 ID로 상품 상세 정보를 조회합니다")
+    @Operation(summary = "상품 상세 조회", description = "상품 ID로 상품 상세 정보를 조회합니다 (조회수 증가)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(
@@ -65,5 +65,25 @@ public class ProductController {
             @PathVariable Long productId) {
         ProductResponse response = productService.getProductDetail(productId);
         return ResponseEntity.ok(CommonResponse.of(response));
+    }
+
+    @Operation(
+            summary = "인기 상품 조회",
+            description = "조회수, 판매량 또는 종합 점수 기준으로 인기 상품 목록을 조회합니다"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    @GetMapping("/popular")
+    public ResponseEntity<CommonResponse<List<ProductResponse>>> getPopularProducts(
+            @Parameter(description = "정렬 기준 (views: 조회수, sales: 판매량, popular: 종합)", example = "popular")
+            @RequestParam(required = false, defaultValue = "popular") String sortBy,
+            @Parameter(description = "페이지 번호", example = "0")
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(required = false, defaultValue = "10") int size
+    ) {
+        PagedResult<ProductResponse> result = productService.getPopularProducts(page, size, sortBy);
+        return ResponseEntity.ok(CommonResponse.of(result.content(), result.meta()));
     }
 }
