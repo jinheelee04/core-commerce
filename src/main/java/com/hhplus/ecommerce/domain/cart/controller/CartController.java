@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +47,7 @@ public class CartController {
     @PostMapping("/items")
     public ResponseEntity<CommonResponse<CartItemAddResponse>> addCartItem(
             @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
-            @RequestBody AddCartItemRequest request
+            @Valid @RequestBody AddCartItemRequest request
     ) {
         CartItemAddResponse response = cartService.addItem(userId, request.productId(), request.quantity());
         return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));
@@ -62,7 +63,7 @@ public class CartController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
             @Parameter(description = "장바구니 항목 ID", example = "1", required = true)
             @PathVariable Long cartItemId,
-            @RequestBody UpdateCartItemRequest request
+            @Valid @RequestBody UpdateCartItemRequest request
     ) {
         CartItemAddResponse response = cartService.updateItemQuantity(userId, cartItemId, request.quantity());
         return ResponseEntity.ok(CommonResponse.success(response));

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +40,7 @@ public class PaymentController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
             @Parameter(description = "멱등성 키 (중복 결제 방지용)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
-            @RequestBody PaymentRequest request
+            @Valid @RequestBody PaymentRequest request
     ) {
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.paymentMethod());
         PaymentResponse response = paymentService.processPayment(userId, request.orderId(), paymentMethod, idempotencyKey);
