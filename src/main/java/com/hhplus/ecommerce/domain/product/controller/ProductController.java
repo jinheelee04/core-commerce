@@ -47,7 +47,7 @@ public class ProductController {
     ) {
 
         PagedResult<ProductResponse> result = productService.getProducts(category, status, sort, page, size);
-        return ResponseEntity.ok(CommonResponse.of(result.content(), result.meta()));
+        return ResponseEntity.ok(CommonResponse.success(result.content(), result.meta()));
     }
 
     @Operation(summary = "상품 상세 조회", description = "상품 ID로 상품 상세 정보를 조회합니다 (조회수 증가)")
@@ -64,7 +64,7 @@ public class ProductController {
             @Parameter(description = "상품 ID", required = true, example = "1")
             @PathVariable Long productId) {
         ProductResponse response = productService.getProductDetail(productId);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
     @Operation(
@@ -84,6 +84,6 @@ public class ProductController {
             @RequestParam(required = false, defaultValue = "10") int size
     ) {
         PagedResult<ProductResponse> result = productService.getPopularProducts(page, size, sortBy);
-        return ResponseEntity.ok(CommonResponse.of(result.content(), result.meta()));
+        return ResponseEntity.ok(CommonResponse.success(result.content(), result.meta()));
     }
 }

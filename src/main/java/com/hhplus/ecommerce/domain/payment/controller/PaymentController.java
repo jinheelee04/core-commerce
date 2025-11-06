@@ -44,7 +44,7 @@ public class PaymentController {
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.paymentMethod());
         PaymentResponse response = paymentService.processPayment(userId, request.orderId(), paymentMethod, idempotencyKey);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.of(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));
     }
 
     @Operation(summary = "결제 상세 조회", description = "결제 ID로 결제 정보를 조회합니다")
@@ -59,7 +59,7 @@ public class PaymentController {
             @PathVariable Long paymentId
     ) {
         PaymentResponse response = paymentService.getPayment(userId, paymentId);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
     @Operation(summary = "주문별 결제 조회", description = "주문 ID로 결제 정보를 조회합니다")
@@ -74,6 +74,6 @@ public class PaymentController {
             @PathVariable Long orderId
     ) {
         PaymentResponse response = paymentService.getPaymentByOrderId(userId, orderId);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 }

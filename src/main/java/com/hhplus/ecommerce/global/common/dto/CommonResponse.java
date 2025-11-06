@@ -9,11 +9,11 @@ public record CommonResponse<T>(
         @JsonInclude(JsonInclude.Include.NON_NULL)
         PageMeta meta
 ) {
-    public static <T> CommonResponse<T> of(T data) {
+    public static <T> CommonResponse<T> success(T data) {
         return new CommonResponse<>(data, null);
     }
 
-    public static <T> CommonResponse<T> of(T data, PageMeta meta) {
+    public static <T> CommonResponse<T> success(T data, PageMeta meta) {
         return new CommonResponse<>(data, meta);
     }
 

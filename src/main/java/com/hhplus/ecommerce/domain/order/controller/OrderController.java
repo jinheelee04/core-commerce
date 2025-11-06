@@ -47,7 +47,7 @@ public class OrderController {
                 request.deliveryMemo()
         );
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.of(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));
     }
 
     @Operation(summary = "주문 상세 조회", description = "주문 ID로 상세 정보를 조회합니다")
@@ -61,7 +61,7 @@ public class OrderController {
             @PathVariable Long id
     ) {
         OrderResponse response = orderService.getOrder(userId, id);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
     @Operation(summary = "주문 목록 조회", description = "사용자의 주문 목록을 조회합니다")
@@ -75,7 +75,7 @@ public class OrderController {
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
     ) {
         PagedResult<OrderSummaryResponse> result = orderService.getUserOrders(userId, page, size);
-        return ResponseEntity.ok(CommonResponse.of(result.content(), result.meta()));
+        return ResponseEntity.ok(CommonResponse.success(result.content(), result.meta()));
     }
 
     @Operation(summary = "주문 취소", description = "주문을 취소합니다 (재고 복구, 쿠폰 복구)")
@@ -91,7 +91,7 @@ public class OrderController {
             @RequestBody UpdateOrderRequest request
     ) {
         CancelOrderResponse response = orderService.cancelOrder(userId, id, request.cancelReason());
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
 }

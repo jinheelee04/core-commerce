@@ -40,7 +40,7 @@ public class CouponController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId
     ) {
         List<CouponResponse> responses = couponService.getAvailableCoupons();
-        return ResponseEntity.ok(CommonResponse.of(responses));
+        return ResponseEntity.ok(CommonResponse.success(responses));
     }
 
     @Operation(
@@ -59,7 +59,7 @@ public class CouponController {
             @RequestBody IssueCouponRequest request
     ) {
         UserCouponResponse response = couponService.issueCoupon(userId, request.couponId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.of(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));
     }
 
     @Operation(
@@ -83,7 +83,7 @@ public class CouponController {
                         ? couponService.getUnusedUserCoupons(userId)
                         : couponService.getUserCoupons(userId);
 
-        return ResponseEntity.ok(CommonResponse.of(responses));
+        return ResponseEntity.ok(CommonResponse.success(responses));
     }
 
     @Operation(
@@ -101,6 +101,6 @@ public class CouponController {
             @PathVariable Long couponId
     ) {
         CouponResponse response = couponService.getCoupon(couponId);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 }

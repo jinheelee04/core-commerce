@@ -35,7 +35,7 @@ public class CartController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId
     ) {
         CartResponse response = cartService.getCart(userId);
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
     @Operation(summary = "장바구니에 상품 담기", description = "장바구니에 상품을 추가합니다")
@@ -49,7 +49,7 @@ public class CartController {
             @RequestBody AddCartItemRequest request
     ) {
         CartItemAddResponse response = cartService.addItem(userId, request.productId(), request.quantity());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.of(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));
     }
 
     @Operation(summary = "장바구니 수량 변경", description = "장바구니 항목의 수량을 변경합니다")
@@ -65,7 +65,7 @@ public class CartController {
             @RequestBody UpdateCartItemRequest request
     ) {
         CartItemAddResponse response = cartService.updateItemQuantity(userId, cartItemId, request.quantity());
-        return ResponseEntity.ok(CommonResponse.of(response));
+        return ResponseEntity.ok(CommonResponse.success(response));
     }
 
     @Operation(summary = "장바구니 항목 삭제", description = "장바구니에서 특정 항목을 삭제합니다")
