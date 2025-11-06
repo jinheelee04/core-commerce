@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
+import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -93,8 +95,8 @@ class UserCouponTest {
         Long orderId = 500L;
 
         assertThatThrownBy(() -> userCoupon.use(orderId))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("이미 사용된 쿠폰입니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_ALREADY_USED);
     }
 
     @Test
@@ -104,8 +106,8 @@ class UserCouponTest {
         Long orderId = 500L;
 
         assertThatThrownBy(() -> userCoupon.use(orderId))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("사용 불가능한 쿠폰입니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_EXPIRED);
     }
 
     @Test
@@ -138,8 +140,8 @@ class UserCouponTest {
         UserCoupon userCoupon = createUserCoupon(false, LocalDateTime.now().plusDays(30));
 
         assertThatThrownBy(() -> userCoupon.cancelUse())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("사용되지 않은 쿠폰입니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_USED);
     }
 
     private UserCoupon createUserCoupon(boolean isUsed, LocalDateTime expiresAt) {

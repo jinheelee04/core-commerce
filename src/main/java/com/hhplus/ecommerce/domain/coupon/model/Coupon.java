@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
+import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -39,10 +41,13 @@ public class Coupon {
 
     public void issue() {
         if (remainingQuantity <= 0) {
-            throw new IllegalStateException("쿠폰 발급 수량이 소진되었습니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_OUT_OF_STOCK);
         }
-        if (!isIssuable()) {
-            throw new IllegalStateException("발급 불가능한 쿠폰입니다.");
+        if (status != CouponStatus.ACTIVE) {
+            throw new BusinessException(CouponErrorCode.COUPON_INACTIVE);
+        }
+        if (!LocalDateTime.now().isBefore(endsAt)) {
+            throw new BusinessException(CouponErrorCode.COUPON_EXPIRED);
         }
         this.remainingQuantity--;
         this.updatedAt = LocalDateTime.now();
@@ -50,7 +55,7 @@ public class Coupon {
 
     public void cancelIssue() {
         if (this.remainingQuantity >= this.totalQuantity) {
-            throw new IllegalStateException("발급 취소할 수 없습니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_CANNOT_CANCEL_ISSUE);
         }
         this.remainingQuantity++;
         this.updatedAt = LocalDateTime.now();
@@ -58,10 +63,10 @@ public class Coupon {
 
     public long calculateDiscount(long orderAmount) {
         if (!isUsable()) {
-            throw new IllegalStateException("사용 불가능한 쿠폰입니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_NOT_USABLE);
         }
         if (orderAmount < minOrderAmount) {
-            throw new IllegalStateException("최소 주문 금액을 충족하지 않습니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_MIN_ORDER_AMOUNT_NOT_MET);
         }
 
         long discount = 0;

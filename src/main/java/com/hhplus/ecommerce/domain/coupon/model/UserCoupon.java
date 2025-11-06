@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
+import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -28,10 +30,10 @@ public class UserCoupon {
 
     public void use(Long orderId) {
         if (this.isUsed) {
-            throw new IllegalStateException("이미 사용된 쿠폰입니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
         }
-        if (!isUsable()) {
-            throw new IllegalStateException("사용 불가능한 쿠폰입니다.");
+        if (LocalDateTime.now().isAfter(expiresAt)) {
+            throw new BusinessException(CouponErrorCode.COUPON_EXPIRED);
         }
         this.isUsed = true;
         this.orderId = orderId;
@@ -41,7 +43,7 @@ public class UserCoupon {
 
     public void cancelUse() {
         if (!this.isUsed) {
-            throw new IllegalStateException("사용되지 않은 쿠폰입니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_NOT_USED);
         }
         this.isUsed = false;
         this.orderId = null;

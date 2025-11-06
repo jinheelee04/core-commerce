@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
+import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -123,8 +125,8 @@ class CouponTest {
         Coupon coupon = createActiveCoupon(0);
 
         assertThatThrownBy(() -> coupon.issue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("쿠폰 발급 수량이 소진되었습니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_OUT_OF_STOCK);
     }
 
     @Test
@@ -145,8 +147,8 @@ class CouponTest {
         Coupon coupon = createActiveCoupon(100);
 
         assertThatThrownBy(() -> coupon.cancelIssue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("발급 취소할 수 없습니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_CANNOT_CANCEL_ISSUE);
     }
 
     @Test
@@ -204,8 +206,8 @@ class CouponTest {
         long orderAmount = 5000L;
 
         assertThatThrownBy(() -> coupon.calculateDiscount(orderAmount))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("최소 주문 금액을 충족하지 않습니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_MIN_ORDER_AMOUNT_NOT_MET);
     }
 
     @Test
@@ -230,8 +232,8 @@ class CouponTest {
                 .build();
 
         assertThatThrownBy(() -> coupon.calculateDiscount(50000L))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("사용 불가능한 쿠폰입니다.");
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_USABLE);
     }
 
     private Coupon createActiveCoupon(int remainingQuantity) {
