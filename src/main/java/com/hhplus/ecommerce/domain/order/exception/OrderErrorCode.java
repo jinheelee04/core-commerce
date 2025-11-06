@@ -14,7 +14,9 @@ public enum OrderErrorCode implements ErrorCode {
     ORDER_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "ORDER_ALREADY_CONFIRMED", "이미 확정된 주문은 취소할 수 없습니다"),
     INVALID_ORDER_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_ORDER_REQUEST", "유효하지 않은 주문 요청입니다"),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "지원하지 않는 작업입니다"),
-    ORDER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "ORDER_ACCESS_DENIED", "본인의 주문만 접근할 수 있습니다");
+    ORDER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "ORDER_ACCESS_DENIED", "본인의 주문만 접근할 수 있습니다"),
+    INVALID_COUPON_OWNER(HttpStatus.FORBIDDEN, "INVALID_COUPON_OWNER", "본인의 쿠폰만 사용할 수 있습니다"),
+    COUPON_NOT_USABLE(HttpStatus.BAD_REQUEST, "COUPON_NOT_USABLE", "사용할 수 없는 쿠폰입니다");
 
     private final HttpStatus status;
     private final String code;

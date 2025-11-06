@@ -42,6 +42,7 @@ public class OrderController {
         OrderResponse response = orderService.createOrder(
                 userId,
                 request.cartItemIds(),
+                request.couponId(),
                 request.deliveryAddress(),
                 request.deliveryMemo()
         );

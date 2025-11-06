@@ -17,6 +17,7 @@ public class Order {
     private Long itemsTotal;
     private Long discountAmount;
     private Long finalAmount;
+    private Long userCouponId;
     private String deliveryAddress;
     private String deliveryMemo;
     private LocalDateTime expiresAt;
@@ -98,6 +99,7 @@ public class Order {
                 .itemsTotal(this.itemsTotal)
                 .discountAmount(this.discountAmount)
                 .finalAmount(this.finalAmount)
+                .userCouponId(this.userCouponId)
                 .deliveryAddress(this.deliveryAddress)
                 .deliveryMemo(this.deliveryMemo)
                 .expiresAt(this.expiresAt)
@@ -111,7 +113,8 @@ public class Order {
     }
 
     public static Order create(Long id, Long userId, String orderNumber, List<OrderItem> orderItems,
-                               long itemsTotal, long discountAmount, String deliveryAddress, String deliveryMemo) {
+                               long itemsTotal, long discountAmount, Long userCouponId,
+                               String deliveryAddress, String deliveryMemo) {
         LocalDateTime now = LocalDateTime.now();
         long finalAmount = itemsTotal - discountAmount;
 
@@ -123,6 +126,7 @@ public class Order {
                 .itemsTotal(itemsTotal)
                 .discountAmount(discountAmount)
                 .finalAmount(finalAmount)
+                .userCouponId(userCouponId)
                 .deliveryAddress(deliveryAddress)
                 .deliveryMemo(deliveryMemo)
                 .expiresAt(now.plusMinutes(10))

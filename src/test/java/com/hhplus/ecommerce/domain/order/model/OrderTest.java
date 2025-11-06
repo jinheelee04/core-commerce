@@ -157,15 +157,15 @@ class OrderTest {
         @Test
         @DisplayName("저장된 subtotal 값을 사용하여 가격 변동에 영향받지 않는다")
         void shouldUseStoredSubtotalNotRecalculate() {
-            // given - subtotal이 계산값(20000)과 다른 경우 (가격 변동 시나리오)
+            // given
             OrderItem item = OrderItem.builder()
                     .id(1L)
                     .orderId(1L)
                     .productId(100L)
                     .productName("테스트 상품")
                     .quantity(2)
-                    .unitPrice(15000L)  // 현재 가격 15000
-                    .subtotal(20000L)    // 주문 시점 가격 10000 * 2
+                    .unitPrice(15000L)
+                    .subtotal(20000L)
                     .createdAt(LocalDateTime.now())
                     .build();
 
@@ -184,7 +184,7 @@ class OrderTest {
             // when
             long result = order.calculateItemsTotal();
 
-            // then - 저장된 subtotal(20000) 사용, 재계산(30000) 아님
+            // then
             assertThat(result).isEqualTo(20000L);
             assertThat(result).isNotEqualTo(item.calculateSubtotal()); // 30000
         }
@@ -243,7 +243,7 @@ class OrderTest {
         @Test
         @DisplayName("할인율 쿠폰 적용 시 정확한 금액을 계산한다")
         void shouldCalculateCorrectAmountWithPercentageDiscount() {
-            // given - 10% 할인
+            // given
             Order order = Order.builder()
                     .id(1L)
                     .userId(1L)
@@ -265,7 +265,7 @@ class OrderTest {
         @Test
         @DisplayName("정액 할인 쿠폰 적용 시 정확한 금액을 계산한다")
         void shouldCalculateCorrectAmountWithFixedDiscount() {
-            // given - 5000원 할인
+            // given
             Order order = Order.builder()
                     .id(1L)
                     .userId(1L)
@@ -359,7 +359,7 @@ class OrderTest {
             int result = order.getTotalQuantity();
 
             // then
-            assertThat(result).isEqualTo(6); // 2 + 3 + 1
+            assertThat(result).isEqualTo(6);
         }
     }
 }

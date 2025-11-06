@@ -127,6 +127,10 @@ public class CouponService {
         return findCouponById(couponId);
     }
 
+    public UserCoupon getUserCouponEntity(Long userCouponId) {
+        return findUserCouponById(userCouponId);
+    }
+
     private Coupon findCouponById(Long couponId) {
         return couponRepository.findById(couponId)
                 .orElseThrow(() -> {
