@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.enums;
+package com.hhplus.ecommerce.domain.coupon.model;
 
 public enum DiscountType {
     PERCENTAGE,

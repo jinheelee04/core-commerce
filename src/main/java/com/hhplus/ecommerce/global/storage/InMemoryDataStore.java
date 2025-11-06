@@ -3,14 +3,14 @@ package com.hhplus.ecommerce.global.storage;
 import com.hhplus.ecommerce.domain.cart.model.Cart;
 import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
 import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderItem;
 import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.product.model.Inventory;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
 import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
 import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 
@@ -54,7 +54,6 @@ InMemoryDataStore {
     static {
         LocalDateTime now = LocalDateTime.now();
 
-        // Products 초기화
         PRODUCTS.put(1L, Product.builder()
                 .id(1L)
                 .name("노트북")
@@ -107,7 +106,6 @@ InMemoryDataStore {
                 .updatedAt(now)
                 .build());
 
-        // Inventory 초기화
         INVENTORY.put(1L, Inventory.builder()
                 .id(1L)
                 .productId(1L)
@@ -148,7 +146,6 @@ InMemoryDataStore {
                 .updatedAt(now)
                 .build());
 
-        // Coupons 초기화
         COUPONS.put(1L, Coupon.builder()
                 .id(1L)
                 .code("WELCOME10")
@@ -193,5 +190,20 @@ InMemoryDataStore {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
         String dateStr = LocalDateTime.now().format(formatter);
         return String.format("ORD-%s-%05d", dateStr, orderIdSequence.get());
+    }
+
+    /**
+     * 테스트용 데이터 초기화 메서드
+     */
+    public static void clear() {
+        PRODUCTS.clear();
+        INVENTORY.clear();
+        CARTS.clear();
+        CART_ITEMS.clear();
+        ORDERS.clear();
+        ORDER_ITEMS.clear();
+        PAYMENTS.clear();
+        COUPONS.clear();
+        USER_COUPONS.clear();
     }
 }
