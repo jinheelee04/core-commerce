@@ -19,7 +19,9 @@ public enum CouponErrorCode implements ErrorCode {
     COUPON_NOT_ISSUABLE(HttpStatus.BAD_REQUEST, "COUPON_NOT_ISSUABLE", "발급 불가능한 쿠폰입니다"),
     COUPON_CANNOT_CANCEL_ISSUE(HttpStatus.BAD_REQUEST, "COUPON_CANNOT_CANCEL_ISSUE", "발급 취소할 수 없습니다"),
     COUPON_NOT_USABLE(HttpStatus.BAD_REQUEST, "COUPON_NOT_USABLE", "사용 불가능한 쿠폰입니다"),
-    COUPON_NOT_USED(HttpStatus.BAD_REQUEST, "COUPON_NOT_USED", "사용되지 않은 쿠폰입니다");
+    COUPON_NOT_USED(HttpStatus.BAD_REQUEST, "COUPON_NOT_USED", "사용되지 않은 쿠폰입니다"),
+    COUPON_ALREADY_RESERVED(HttpStatus.BAD_REQUEST, "COUPON_ALREADY_RESERVED", "이미 다른 주문에 예약된 쿠폰입니다"),
+    COUPON_NOT_RESERVED(HttpStatus.BAD_REQUEST, "COUPON_NOT_RESERVED", "예약되지 않은 쿠폰입니다");
 
     private final HttpStatus status;
     private final String code;

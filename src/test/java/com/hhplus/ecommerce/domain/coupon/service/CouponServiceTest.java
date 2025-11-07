@@ -145,41 +145,45 @@ class CouponServiceTest {
     }
 
     @Test
-    @DisplayName("쿠폰 사용 성공 - 정상적으로 쿠폰이 사용된다")
-    void useCoupon_Success() {
+    @DisplayName("쿠폰 예약 성공 - 정상적으로 쿠폰이 예약된다")
+    void reserveCoupon_Success() {
         Long orderId = 300L;
         UserCoupon userCoupon = createTestUserCoupon(USER_COUPON_ID, false);
 
         given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
         given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
 
-        couponService.useCoupon(USER_COUPON_ID, orderId);
+        couponService.reserveCoupon(USER_COUPON_ID, orderId);
 
         verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
     }
 
     @Test
-    @DisplayName("쿠폰 사용 실패 - 존재하지 않는 사용자 쿠폰")
-    void useCoupon_NotFound() {
+    @DisplayName("쿠폰 확정 성공 - 예약된 쿠폰이 확정된다")
+    void confirmCouponReservation_Success() {
         Long orderId = 300L;
-        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.empty());
+        UserCoupon userCoupon = createTestUserCouponWithOrder(USER_COUPON_ID, false, orderId);
 
-        assertThatThrownBy(() -> couponService.useCoupon(USER_COUPON_ID, orderId))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_FOUND);
+        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
+        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
+
+        couponService.confirmCouponReservation(USER_COUPON_ID);
+
+        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
     }
 
     @Test
-    @DisplayName("쿠폰 사용 실패 - 이미 사용된 쿠폰")
-    void useCoupon_AlreadyUsed() {
+    @DisplayName("쿠폰 예약 해제 성공 - 예약이 해제된다")
+    void releaseCouponReservation_Success() {
         Long orderId = 300L;
-        UserCoupon userCoupon = createTestUserCoupon(USER_COUPON_ID, true);
+        UserCoupon userCoupon = createTestUserCouponWithOrder(USER_COUPON_ID, false, orderId);
 
         given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
+        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
 
-        assertThatThrownBy(() -> couponService.useCoupon(USER_COUPON_ID, orderId))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_ALREADY_USED);
+        couponService.releaseCouponReservation(USER_COUPON_ID);
+
+        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
     }
 
     @Test
@@ -273,6 +277,20 @@ class CouponServiceTest {
                 .id(id)
                 .couponId(COUPON_ID)
                 .userId(USER_ID)
+                .isUsed(isUsed)
+                .issuedAt(now)
+                .expiresAt(now.plusDays(30))
+                .updatedAt(now)
+                .build();
+    }
+
+    private UserCoupon createTestUserCouponWithOrder(Long id, boolean isUsed, Long orderId) {
+        LocalDateTime now = LocalDateTime.now();
+        return UserCoupon.builder()
+                .id(id)
+                .couponId(COUPON_ID)
+                .userId(USER_ID)
+                .orderId(orderId)
                 .isUsed(isUsed)
                 .issuedAt(now)
                 .expiresAt(now.plusDays(30))

@@ -64,12 +64,27 @@ class UserCouponTest {
     }
 
     @Test
-    @DisplayName("쿠폰 사용 성공 - isUsed가 true로 변경되고 orderId와 usedAt이 설정된다")
-    void use_Success() {
+    @DisplayName("쿠폰 예약 성공 - orderId가 설정된다")
+    void reserve_Success() {
         UserCoupon userCoupon = createUserCoupon(false, LocalDateTime.now().plusDays(30));
         Long orderId = 500L;
 
-        userCoupon.use(orderId);
+        userCoupon.reserve(orderId);
+
+        assertThat(userCoupon.getIsUsed()).isFalse();
+        assertThat(userCoupon.getOrderId()).isEqualTo(orderId);
+        assertThat(userCoupon.getUsedAt()).isNull();
+        assertThat(userCoupon.getUpdatedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("쿠폰 예약 확정 성공 - isUsed가 true로 변경되고 usedAt이 설정된다")
+    void confirmReservation_Success() {
+        UserCoupon userCoupon = createUserCoupon(false, LocalDateTime.now().plusDays(30));
+        Long orderId = 500L;
+
+        userCoupon.reserve(orderId);
+        userCoupon.confirmReservation();
 
         assertThat(userCoupon.getIsUsed()).isTrue();
         assertThat(userCoupon.getOrderId()).isEqualTo(orderId);
@@ -78,8 +93,8 @@ class UserCouponTest {
     }
 
     @Test
-    @DisplayName("쿠폰 사용 실패 - 이미 사용된 쿠폰")
-    void use_Fail_AlreadyUsed() {
+    @DisplayName("쿠폰 예약 실패 - 이미 사용된 쿠폰")
+    void reserve_Fail_AlreadyUsed() {
         LocalDateTime now = LocalDateTime.now();
         UserCoupon userCoupon = UserCoupon.builder()
                 .id(1L)
@@ -94,20 +109,45 @@ class UserCouponTest {
                 .build();
         Long orderId = 500L;
 
-        assertThatThrownBy(() -> userCoupon.use(orderId))
+        assertThatThrownBy(() -> userCoupon.reserve(orderId))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_ALREADY_USED);
     }
 
     @Test
-    @DisplayName("쿠폰 사용 실패 - 만료된 쿠폰")
-    void use_Fail_Expired() {
+    @DisplayName("쿠폰 예약 실패 - 이미 예약된 쿠폰")
+    void reserve_Fail_AlreadyReserved() {
+        UserCoupon userCoupon = createUserCouponWithOrder(false, 999L, LocalDateTime.now().plusDays(30));
+        Long orderId = 500L;
+
+        assertThatThrownBy(() -> userCoupon.reserve(orderId))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_ALREADY_RESERVED);
+    }
+
+    @Test
+    @DisplayName("쿠폰 예약 실패 - 만료된 쿠폰")
+    void reserve_Fail_Expired() {
         UserCoupon userCoupon = createUserCoupon(false, LocalDateTime.now().minusDays(1));
         Long orderId = 500L;
 
-        assertThatThrownBy(() -> userCoupon.use(orderId))
+        assertThatThrownBy(() -> userCoupon.reserve(orderId))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("쿠폰 예약 해제 성공 - orderId가 null이 된다")
+    void releaseReservation_Success() {
+        UserCoupon userCoupon = createUserCoupon(false, LocalDateTime.now().plusDays(30));
+        Long orderId = 500L;
+        userCoupon.reserve(orderId);
+
+        userCoupon.releaseReservation();
+
+        assertThat(userCoupon.getIsUsed()).isFalse();
+        assertThat(userCoupon.getOrderId()).isNull();
+        assertThat(userCoupon.getUpdatedAt()).isNotNull();
     }
 
     @Test
@@ -150,6 +190,20 @@ class UserCouponTest {
                 .id(1L)
                 .couponId(100L)
                 .userId(200L)
+                .isUsed(isUsed)
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .updatedAt(now)
+                .build();
+    }
+
+    private UserCoupon createUserCouponWithOrder(boolean isUsed, Long orderId, LocalDateTime expiresAt) {
+        LocalDateTime now = LocalDateTime.now();
+        return UserCoupon.builder()
+                .id(1L)
+                .couponId(100L)
+                .userId(200L)
+                .orderId(orderId)
                 .isUsed(isUsed)
                 .issuedAt(now)
                 .expiresAt(expiresAt)

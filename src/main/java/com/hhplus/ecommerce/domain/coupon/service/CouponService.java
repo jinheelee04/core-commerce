@@ -78,11 +78,27 @@ public class CouponService {
         }
     }
 
-    public void useCoupon(Long userCouponId, Long orderId) {
+    public void reserveCoupon(Long userCouponId, Long orderId) {
         UserCoupon userCoupon = findUserCouponById(userCouponId);
-
-        userCoupon.use(orderId);
+        userCoupon.reserve(orderId);
         userCouponRepository.save(userCoupon);
+    }
+
+    public void confirmCouponReservation(Long userCouponId) {
+        UserCoupon userCoupon = findUserCouponById(userCouponId);
+        userCoupon.confirmReservation();
+        userCouponRepository.save(userCoupon);
+    }
+
+    public void releaseCouponReservation(Long userCouponId) {
+        UserCoupon userCoupon = findUserCouponById(userCouponId);
+        userCoupon.releaseReservation();
+        userCouponRepository.save(userCoupon);
+    }
+
+    @Deprecated
+    public void useCoupon(Long userCouponId, Long orderId) {
+        confirmCouponReservation(userCouponId);
     }
 
     public void cancelCouponUse(Long userCouponId) {

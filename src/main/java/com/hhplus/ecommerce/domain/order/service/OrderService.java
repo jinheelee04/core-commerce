@@ -71,7 +71,7 @@ public class OrderService {
         saveOrderItems(savedOrder.getId(), orderItems);
 
         if (userCouponId != null) {
-            couponService.useCoupon(userCouponId, savedOrder.getId());
+            couponService.reserveCoupon(userCouponId, savedOrder.getId());
         }
 
         cartService.removeCartItems(cartItemIds);
@@ -118,13 +118,19 @@ public class OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_ALREADY_CONFIRMED);
         }
 
+        boolean wasPaid = order.getPaidAt() != null;
+
         order.cancel(reason);
         orderRepository.save(order);
 
         releaseStockReservations(orderId);
 
         if (order.getUserCouponId() != null) {
-            restoreCoupon(order.getUserCouponId());
+            if (wasPaid) {
+                restoreCoupon(order.getUserCouponId());
+            } else {
+                releaseCouponReservation(order.getUserCouponId());
+            }
         }
 
         return CancelOrderResponse.of(
@@ -144,6 +150,10 @@ public class OrderService {
 
         confirmStockReservations(orderId);
         incrementSalesCount(orderId);
+
+        if (order.getUserCouponId() != null) {
+            couponService.confirmCouponReservation(order.getUserCouponId());
+        }
     }
 
     private OrderResponse toOrderResponse(Order order, Coupon coupon, Long discountAmount) {
@@ -223,6 +233,15 @@ public class OrderService {
             couponService.cancelCouponUse(userCouponId);
         } catch (Exception e) {
             // 쿠폰 복구 실패는 로깅만 하고 주문 취소는 계속 진행
+            // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+        }
+    }
+
+    private void releaseCouponReservation(Long userCouponId) {
+        try {
+            couponService.releaseCouponReservation(userCouponId);
+        } catch (Exception e) {
+            // 쿠폰 예약 해제 실패는 로깅만 하고 주문 취소는 계속 진행
             // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
         }
     }

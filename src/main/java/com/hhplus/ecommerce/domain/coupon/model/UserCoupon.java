@@ -21,22 +21,46 @@ public class UserCoupon {
     private LocalDateTime updatedAt;
 
     public boolean isUsable() {
-        return !isUsed && LocalDateTime.now().isBefore(expiresAt);
+        return !isUsed && orderId == null && LocalDateTime.now().isBefore(expiresAt);
     }
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 
-    public void use(Long orderId) {
+    public void reserve(Long orderId) {
         if (this.isUsed) {
             throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
+        }
+        if (this.orderId != null) {
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_RESERVED);
         }
         if (LocalDateTime.now().isAfter(expiresAt)) {
             throw new BusinessException(CouponErrorCode.COUPON_EXPIRED);
         }
-        this.isUsed = true;
         this.orderId = orderId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void releaseReservation() {
+        if (this.orderId == null) {
+            throw new BusinessException(CouponErrorCode.COUPON_NOT_RESERVED);
+        }
+        if (this.isUsed) {
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
+        }
+        this.orderId = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void confirmReservation() {
+        if (this.orderId == null) {
+            throw new BusinessException(CouponErrorCode.COUPON_NOT_RESERVED);
+        }
+        if (this.isUsed) {
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
+        }
+        this.isUsed = true;
         this.usedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }

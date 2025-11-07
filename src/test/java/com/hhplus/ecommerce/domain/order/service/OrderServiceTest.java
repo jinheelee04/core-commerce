@@ -166,9 +166,9 @@ class OrderServiceTest {
         assertThat(result.pricing().finalAmount()).isEqualTo(18000L); // 20000 - 2000
         assertThat(result.coupon()).isNotNull();
         assertThat(result.coupon().name()).isEqualTo("신규 회원 쿠폰");
-        verify(couponService).useCoupon(userCouponId, 1L);
         verify(productService).reserveStock(1L, 2);
         verify(cartService).removeCartItems(cartItemIds);
+        verify(couponService, never()).useCoupon(any(), any());
     }
 
     @Test
@@ -237,8 +237,8 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("주문 취소 성공 - 쿠폰 복구")
-    void cancelOrder_WithCoupon_Success() {
+    @DisplayName("주문 취소 성공 - PENDING 상태 (쿠폰 복구 불필요)")
+    void cancelOrder_PendingStatus_NoCouponRestore() {
         // given
         Long orderId = 1L;
         Long userId = 1L;
@@ -255,6 +255,7 @@ class OrderServiceTest {
                 .finalAmount(18000L)
                 .userCouponId(userCouponId)
                 .deliveryAddress("서울")
+                .paidAt(null)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -270,7 +271,45 @@ class OrderServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED.name());
         assertThat(result.cancelReason()).isEqualTo(reason);
-        verify(couponService).cancelCouponUse(userCouponId);
+        verify(couponService, never()).cancelCouponUse(any());
+    }
+
+    @Test
+    @DisplayName("주문 취소 성공 - PAID 상태 (쿠폰 복구 필요)")
+    void cancelOrder_PaidStatus_RestoreCoupon() {
+        // given
+        Long orderId = 1L;
+        Long userId = 1L;
+        Long userCouponId = 1L;
+        String reason = "관리자 취소";
+
+        Order order = Order.builder()
+                .id(orderId)
+                .userId(userId)
+                .orderNumber("ORD-001")
+                .status(OrderStatus.PAID)
+                .itemsTotal(20000L)
+                .discountAmount(2000L)
+                .finalAmount(18000L)
+                .userCouponId(userCouponId)
+                .deliveryAddress("서울")
+                .paidAt(LocalDateTime.now())  // PAID 상태 표시
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderItemRepository.findByOrderId(orderId)).thenReturn(List.of());
+
+        // when
+        CancelOrderResponse result = orderService.cancelOrder(userId, orderId, reason);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED.name());
+        assertThat(result.cancelReason()).isEqualTo(reason);
+        verify(couponService).cancelCouponUse(userCouponId);  // PAID 상태에서는 쿠폰 복구 필요
     }
 
     @Test
