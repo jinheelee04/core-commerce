@@ -3,7 +3,6 @@ package com.hhplus.ecommerce.domain.payment.service;
 import com.hhplus.ecommerce.domain.coupon.model.Coupon;
 import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
-import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
 import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
@@ -15,6 +14,7 @@ import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.repository.PaymentRepository;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.common.exception.DomainExceptionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +34,7 @@ public class PaymentService {
     private final CouponService couponService;
     private final RestClient restClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final DomainExceptionMapper exceptionMapper;
 
     @Value("${mock.payment.url}")
     private String mockPaymentUrl;
@@ -96,7 +97,7 @@ public class PaymentService {
         try {
             orderService.requireOrderOwnedByUser(userId, orderId);
         } catch (BusinessException e) {
-            throw convertOrderExceptionToPaymentException(e, context);
+            throw exceptionMapper.mapToPaymentException(e, context);
         }
     }
 
@@ -105,7 +106,7 @@ public class PaymentService {
         try {
             order = orderService.requireOrderOwnedByUser(userId, orderId);
         } catch (BusinessException e) {
-            throw convertOrderExceptionToPaymentException(e, "결제 처리");
+            throw exceptionMapper.mapToPaymentException(e, "결제 처리");
         }
 
         if (order == null) {
@@ -121,16 +122,6 @@ public class PaymentService {
         return order;
     }
 
-    private BusinessException convertOrderExceptionToPaymentException(BusinessException e, String context) {
-        if (e.getErrorCode() == OrderErrorCode.ORDER_NOT_FOUND) {
-            log.warn("[Payment] {} 실패: 주문을 찾을 수 없음", context);
-            return new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
-        } else if (e.getErrorCode() == OrderErrorCode.ORDER_ACCESS_DENIED) {
-            log.warn("[Payment] {} 실패: 주문 접근 권한 없음", context);
-            return new BusinessException(PaymentErrorCode.PAYMENT_NOT_ALLOWED);
-        }
-        return e;
-    }
 
     private Payment checkExistingSuccessfulPayment(Long orderId) {
         Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);

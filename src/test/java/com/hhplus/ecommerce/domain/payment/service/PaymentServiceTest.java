@@ -18,6 +18,7 @@ import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.model.PaymentStatus;
 import com.hhplus.ecommerce.domain.payment.repository.PaymentRepository;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.common.exception.DomainExceptionMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,9 @@ class PaymentServiceTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock(lenient = true)
+    private DomainExceptionMapper exceptionMapper;
+
+    @Mock(lenient = true)
     private RequestBodyUriSpec requestBodyUriSpec;
 
     @Mock(lenient = true)
@@ -87,6 +91,17 @@ class PaymentServiceTest {
         given(requestBodyUriSpec.uri(nullable(String.class))).willReturn(requestBodySpec);
         given(requestBodySpec.body(anyMap())).willReturn(requestBodySpec);
         given(requestBodySpec.retrieve()).willReturn(responseSpec);
+
+        given(exceptionMapper.mapToPaymentException(any(BusinessException.class), anyString()))
+                .willAnswer(invocation -> {
+                    BusinessException e = invocation.getArgument(0);
+                    if (e.getErrorCode() == OrderErrorCode.ORDER_NOT_FOUND) {
+                        return new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
+                    } else if (e.getErrorCode() == OrderErrorCode.ORDER_ACCESS_DENIED) {
+                        return new BusinessException(PaymentErrorCode.PAYMENT_NOT_ALLOWED);
+                    }
+                    return e;
+                });
     }
 
     private Order createTestOrder() {
