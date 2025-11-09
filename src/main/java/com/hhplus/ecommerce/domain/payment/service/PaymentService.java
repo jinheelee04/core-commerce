@@ -34,7 +34,7 @@ public class PaymentService {
     @Value("${mock.payment.url}")
     private String mockPaymentUrl;
 
-    public Payment getPaymentEntity(Long paymentId){
+    public Payment findPaymentById(Long paymentId){
         return  paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
@@ -67,7 +67,7 @@ public class PaymentService {
     }
 
     public PaymentResponse getPayment(Long userId, Long paymentId) {
-        Payment payment = getPaymentEntity(paymentId);
+        Payment payment = findPaymentById(paymentId);
         validateOrderOwnership(userId, payment.getOrderId(), "결제 조회");
 
         return toPaymentResponse(payment);
@@ -230,7 +230,7 @@ public class PaymentService {
         PaymentResponse.PaymentCouponInfo couponInfo = null;
 
         try {
-            Order order = orderService.getOrderEntity(payment.getOrderId());
+            Order order = orderService.findOrderById(payment.getOrderId());
             if (order.getUserCouponId() != null) {
                 couponInfo = getCouponInfo(order.getUserCouponId(), order.getDiscountAmount());
             }
@@ -256,8 +256,8 @@ public class PaymentService {
 
     private PaymentResponse.PaymentCouponInfo getCouponInfo(Long userCouponId, Long discountAmount) {
         try {
-            UserCoupon userCoupon = couponService.getUserCouponEntity(userCouponId);
-            Coupon coupon = couponService.getCouponEntity(userCoupon.getCouponId());
+            UserCoupon userCoupon = couponService.findUserCouponById(userCouponId);
+            Coupon coupon = couponService.findCouponById(userCoupon.getCouponId());
             return PaymentResponse.PaymentCouponInfo.of(
                     coupon.getId(),
                     coupon.getName(),

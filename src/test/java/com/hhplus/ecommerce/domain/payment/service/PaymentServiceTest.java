@@ -469,9 +469,9 @@ class PaymentServiceTest {
                 .build();
 
         given(orderService.requireOrderOwnedByUser(USER_ID, ORDER_ID)).willReturn(orderWithCoupon);
-        given(orderService.getOrderEntity(ORDER_ID)).willReturn(orderWithCoupon);
-        given(couponService.getUserCouponEntity(userCouponId)).willReturn(userCoupon);
-        given(couponService.getCouponEntity(couponId)).willReturn(coupon);
+        given(orderService.findOrderById(ORDER_ID)).willReturn(orderWithCoupon);
+        given(couponService.findUserCouponById(userCouponId)).willReturn(userCoupon);
+        given(couponService.findCouponById(couponId)).willReturn(coupon);
         given(paymentRepository.findByClientRequestId(CLIENT_REQUEST_ID)).willReturn(Optional.empty());
         given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.empty());
         given(paymentRepository.generateNextId()).willReturn(PAYMENT_ID);
@@ -587,9 +587,9 @@ class PaymentServiceTest {
 
         given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(savedPayment));
         given(orderService.requireOrderOwnedByUser(USER_ID, ORDER_ID)).willReturn(orderWithCoupon);
-        given(orderService.getOrderEntity(ORDER_ID)).willReturn(orderWithCoupon);
-        given(couponService.getUserCouponEntity(userCouponId)).willReturn(userCoupon);
-        given(couponService.getCouponEntity(couponId)).willReturn(coupon);
+        given(orderService.findOrderById(ORDER_ID)).willReturn(orderWithCoupon);
+        given(couponService.findUserCouponById(userCouponId)).willReturn(userCoupon);
+        given(couponService.findCouponById(couponId)).willReturn(coupon);
 
         // When
         PaymentResponse response = paymentService.getPayment(USER_ID, PAYMENT_ID);

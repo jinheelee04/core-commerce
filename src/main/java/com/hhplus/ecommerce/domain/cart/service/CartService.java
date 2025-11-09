@@ -8,7 +8,6 @@ import com.hhplus.ecommerce.domain.cart.model.Cart;
 import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.cart.repository.CartItemRepository;
 import com.hhplus.ecommerce.domain.cart.repository.CartRepository;
-import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
 import com.hhplus.ecommerce.domain.product.model.Inventory;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
@@ -33,9 +32,7 @@ public class CartService {
     }
 
     public CartItemAddResponse addItem(Long userId, Long productId, int quantity) {
-        Product product = productService.getProductEntity(productId);
-
-        validateProductAvailable(product);
+        Product product = productService.findProductById(productId);
 
         Cart cart = getOrCreateCart(userId);
 
@@ -47,7 +44,7 @@ public class CartService {
     }
 
     public CartItemAddResponse updateItemQuantity(Long userId, Long cartItemId, int quantity) {
-        CartItem cartItem = getCartItem(cartItemId);
+        CartItem cartItem = findCartItemById(cartItemId);
         Cart cart = findCartById(cartItem.getCartId());
 
         validateCartOwnership(cart, userId);
@@ -59,7 +56,7 @@ public class CartService {
     }
 
     public void removeItem(Long userId, Long cartItemId) {
-        CartItem cartItem = getCartItem(cartItemId);
+        CartItem cartItem = findCartItemById(cartItemId);
         Cart cart = findCartById(cartItem.getCartId());
 
         validateCartOwnership(cart, userId);
@@ -157,7 +154,7 @@ public class CartService {
                 .orElseThrow(() -> new BusinessException(CartErrorCode.CART_NOT_FOUND));
     }
 
-    private CartItem getCartItem(Long cartItemId) {
+    private CartItem findCartItemById(Long cartItemId) {
         return cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new BusinessException(CartErrorCode.CART_ITEM_NOT_FOUND));
     }
@@ -165,12 +162,6 @@ public class CartService {
     private void validateCartOwnership(Cart cart, Long userId) {
         if (!cart.belongsTo(userId)) {
             throw new BusinessException(CartErrorCode.CART_NOT_FOUND);
-        }
-    }
-
-    private void validateProductAvailable(Product product) {
-        if (!product.isAvailable()) {
-            throw new BusinessException(ProductErrorCode.PRODUCT_OUT_OF_STOCK);
         }
     }
 

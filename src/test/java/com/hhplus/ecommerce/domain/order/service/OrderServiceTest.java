@@ -147,8 +147,8 @@ class OrderServiceTest {
 
         when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
         when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.getUserCouponEntity(userCouponId)).thenReturn(testUserCoupon);
-        when(couponService.getCouponEntity(1L)).thenReturn(testCoupon);
+        when(couponService.findUserCouponById(userCouponId)).thenReturn(testUserCoupon);
+        when(couponService.findCouponById(1L)).thenReturn(testCoupon);
         when(orderRepository.generateNextId()).thenReturn(1L);
         when(orderRepository.generateOrderNumber()).thenReturn("ORD-001");
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -190,7 +190,7 @@ class OrderServiceTest {
 
         when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
         when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.getUserCouponEntity(userCouponId)).thenReturn(otherUserCoupon);
+        when(couponService.findUserCouponById(userCouponId)).thenReturn(otherUserCoupon);
         when(orderItemRepository.generateNextId()).thenReturn(1L);
 
         // when & then
@@ -224,7 +224,7 @@ class OrderServiceTest {
 
         when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
         when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.getUserCouponEntity(userCouponId)).thenReturn(usedCoupon);
+        when(couponService.findUserCouponById(userCouponId)).thenReturn(usedCoupon);
         when(orderItemRepository.generateNextId()).thenReturn(1L);
 
         // when & then

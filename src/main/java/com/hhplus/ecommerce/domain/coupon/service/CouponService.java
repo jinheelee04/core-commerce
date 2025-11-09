@@ -133,32 +133,18 @@ public class CouponService {
 
     public CouponResponse getCouponByCode(String code) {
         Coupon coupon = couponRepository.findByCode(code)
-                .orElseThrow(() -> {
-                    return new BusinessException(CouponErrorCode.COUPON_NOT_FOUND);
-                });
+                .orElseThrow(() -> new BusinessException(CouponErrorCode.COUPON_NOT_FOUND));
         return toCouponResponse(coupon);
     }
 
-    public Coupon getCouponEntity(Long couponId) {
-        return findCouponById(couponId);
-    }
-
-    public UserCoupon getUserCouponEntity(Long userCouponId) {
-        return findUserCouponById(userCouponId);
-    }
-
-    private Coupon findCouponById(Long couponId) {
+    public Coupon findCouponById(Long couponId) {
         return couponRepository.findById(couponId)
-                .orElseThrow(() -> {
-                    return new BusinessException(CouponErrorCode.COUPON_NOT_FOUND);
-                });
+                .orElseThrow(() -> new BusinessException(CouponErrorCode.COUPON_NOT_FOUND));
     }
 
-    private UserCoupon findUserCouponById(Long userCouponId) {
+    public UserCoupon findUserCouponById(Long userCouponId) {
         return userCouponRepository.findById(userCouponId)
-                .orElseThrow(() -> {
-                    return new BusinessException(CouponErrorCode.COUPON_NOT_FOUND);
-                });
+                .orElseThrow(() -> new BusinessException(CouponErrorCode.COUPON_NOT_FOUND));
     }
 
     private CouponResponse toCouponResponse(Coupon coupon) {

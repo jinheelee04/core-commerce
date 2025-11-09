@@ -25,13 +25,13 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
 
-    public Product getProductEntity(Long id) {
+    public Product findProductById(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
     public ProductResponse getProductDetail(Long id) {
-        Product product = getProductEntity(id);
+        Product product = findProductById(id);
         Inventory inventory = getInventory(id);
 
         product.incrementViewCount();
@@ -127,21 +127,20 @@ public class ProductService {
         inventoryRepository.save(inventory);
     }
 
-
-    public void confirmReservation(Long productId, int quantity) {
+    public void confirmStockReservation(Long productId, int quantity) {
         Inventory inventory = getInventory(productId);
         inventory.confirmReservation(quantity);
         inventoryRepository.save(inventory);
     }
 
-    public void releaseReservation(Long productId, int quantity) {
+    public void releaseStockReservation(Long productId, int quantity) {
         Inventory inventory = getInventory(productId);
         inventory.releaseReservation(quantity);
         inventoryRepository.save(inventory);
     }
 
     public void incrementSalesCount(Long productId, int quantity) {
-        Product product = getProductEntity(productId);
+        Product product = findProductById(productId);
         product.incrementSalesCount(quantity);
         productRepository.save(product);
     }
