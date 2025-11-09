@@ -31,4 +31,14 @@ public record CartItemResponse(
         @Schema(description = "생성 시간", example = "2025-01-15T10:30:00")
         String createdAt
 ) {
+    public static CartItemResponse of(Long cartItemId, Long productId, String productName,
+                                       String productImageUrl, Long price, Integer quantity,
+                                       Long subtotal, Integer availableStock,
+                                       java.time.LocalDateTime createdAt) {
+        return new CartItemResponse(
+                cartItemId, productId, productName, productImageUrl, price, quantity,
+                subtotal, availableStock,
+                createdAt != null ? createdAt.toString() : null
+        );
+    }
 }

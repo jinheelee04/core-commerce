@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.global.config;
 
+import com.hhplus.ecommerce.global.constants.HttpHeaders;
+import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
@@ -41,10 +43,10 @@ import org.springframework.context.annotation.Configuration;
         }
 )
 @SecurityScheme(
-        name = "X-User-Id",
+        name = SecurityConstants.SECURITY_SCHEME_NAME,
         type = SecuritySchemeType.APIKEY,
         in = SecuritySchemeIn.HEADER,
-        paramName = "X-User-Id",
+        paramName = HttpHeaders.X_USER_ID,
         description = """
                 사용자 ID를 헤더로 전달합니다.
 

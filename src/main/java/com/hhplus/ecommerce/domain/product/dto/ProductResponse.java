@@ -40,4 +40,14 @@ public record ProductResponse(
         @Schema(description = "등록 시간", example = "2025-01-01T00:00:00")
         String createdAt
 ) {
+    public static ProductResponse of(Long productId, String name, String description, Long price,
+                                      String category, String brand, String imageUrl, String status,
+                                      Integer stock, Integer reservedStock, Integer availableStock,
+                                      java.time.LocalDateTime createdAt) {
+        return new ProductResponse(
+                productId, name, description, price, category, brand, imageUrl, status,
+                stock, reservedStock, availableStock,
+                createdAt != null ? createdAt.toString() : null
+        );
+    }
 }
