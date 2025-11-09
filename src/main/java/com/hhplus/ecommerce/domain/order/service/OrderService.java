@@ -15,7 +15,7 @@ import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
-import com.hhplus.ecommerce.global.common.dto.PagedResult;
+import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -5,7 +5,7 @@ import com.hhplus.ecommerce.domain.cart.dto.CartItemAddResponse;
 import com.hhplus.ecommerce.domain.cart.dto.CartResponse;
 import com.hhplus.ecommerce.domain.cart.dto.UpdateCartItemRequest;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
-import com.hhplus.ecommerce.global.common.dto.CommonResponse;
+import com.hhplus.ecommerce.global.dto.CommonResponse;
 import com.hhplus.ecommerce.global.constants.HttpHeaders;
 import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;

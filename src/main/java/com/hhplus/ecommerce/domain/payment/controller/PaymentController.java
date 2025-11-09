@@ -4,7 +4,7 @@ import com.hhplus.ecommerce.domain.payment.dto.PaymentRequest;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.service.PaymentService;
-import com.hhplus.ecommerce.global.common.dto.CommonResponse;
+import com.hhplus.ecommerce.global.dto.CommonResponse;
 import com.hhplus.ecommerce.global.constants.HttpHeaders;
 import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;

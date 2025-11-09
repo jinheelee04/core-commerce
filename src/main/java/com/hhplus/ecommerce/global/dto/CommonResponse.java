@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.dto;
+package com.hhplus.ecommerce.global.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;

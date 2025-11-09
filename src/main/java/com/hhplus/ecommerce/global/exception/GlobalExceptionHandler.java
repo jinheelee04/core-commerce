@@ -1,6 +1,6 @@
 package com.hhplus.ecommerce.global.exception;
 
-import com.hhplus.ecommerce.global.common.dto.ErrorResponse;
+import com.hhplus.ecommerce.global.dto.ErrorResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;

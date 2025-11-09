@@ -2,8 +2,8 @@ package com.hhplus.ecommerce.domain.order.controller;
 
 import com.hhplus.ecommerce.domain.order.dto.*;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
-import com.hhplus.ecommerce.global.common.dto.CommonResponse;
-import com.hhplus.ecommerce.global.common.dto.PagedResult;
+import com.hhplus.ecommerce.global.dto.CommonResponse;
+import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.constants.HttpHeaders;
 import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;
