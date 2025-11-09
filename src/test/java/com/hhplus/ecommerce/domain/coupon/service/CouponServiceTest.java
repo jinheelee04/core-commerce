@@ -9,7 +9,7 @@ import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
 import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.repository.CouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.UserCouponRepository;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

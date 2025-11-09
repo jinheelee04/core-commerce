@@ -7,7 +7,7 @@ import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
 import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
 import com.hhplus.ecommerce.domain.coupon.repository.InMemoryCouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.InMemoryUserCouponRepository;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import com.hhplus.ecommerce.global.storage.InMemoryDataStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

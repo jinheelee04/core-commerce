@@ -1,7 +1,7 @@
 package com.hhplus.ecommerce.domain.product.model;
 
 import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.Builder;
 import lombok.Getter;
 

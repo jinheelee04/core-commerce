@@ -1,7 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.Builder;
 import lombok.Getter;
 

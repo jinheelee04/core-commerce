@@ -11,7 +11,7 @@ import com.hhplus.ecommerce.domain.cart.repository.CartRepository;
 import com.hhplus.ecommerce.domain.product.model.Inventory;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

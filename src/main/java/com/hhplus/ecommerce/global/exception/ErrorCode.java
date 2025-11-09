@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.exception;
+package com.hhplus.ecommerce.global.exception;
 
 import org.springframework.http.HttpStatus;
 

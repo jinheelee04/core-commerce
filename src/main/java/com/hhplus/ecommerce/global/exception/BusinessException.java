@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.exception;
+package com.hhplus.ecommerce.global.exception;
 
 import java.util.HashMap;
 import java.util.Map;

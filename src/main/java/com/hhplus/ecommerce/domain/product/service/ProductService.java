@@ -9,7 +9,7 @@ import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 import com.hhplus.ecommerce.domain.product.repository.InventoryRepository;
 import com.hhplus.ecommerce.domain.product.repository.ProductRepository;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

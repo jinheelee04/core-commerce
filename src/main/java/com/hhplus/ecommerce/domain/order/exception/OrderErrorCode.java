@@ -1,6 +1,6 @@
 package com.hhplus.ecommerce.domain.order.exception;
 
-import com.hhplus.ecommerce.global.common.exception.ErrorCode;
+import com.hhplus.ecommerce.global.exception.ErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;

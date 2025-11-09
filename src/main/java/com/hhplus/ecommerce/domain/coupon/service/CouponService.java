@@ -7,7 +7,7 @@ import com.hhplus.ecommerce.domain.coupon.model.Coupon;
 import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.repository.CouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.UserCouponRepository;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

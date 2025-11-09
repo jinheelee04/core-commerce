@@ -10,7 +10,7 @@ import com.hhplus.ecommerce.domain.product.repository.InventoryRepository;
 import com.hhplus.ecommerce.domain.product.repository.ProductRepository;
 import com.hhplus.ecommerce.global.common.dto.PageMeta;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

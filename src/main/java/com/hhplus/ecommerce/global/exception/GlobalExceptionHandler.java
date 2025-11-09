@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.exception;
+package com.hhplus.ecommerce.global.exception;
 
 import com.hhplus.ecommerce.global.common.dto.ErrorResponse;
 import jakarta.validation.ConstraintViolation;

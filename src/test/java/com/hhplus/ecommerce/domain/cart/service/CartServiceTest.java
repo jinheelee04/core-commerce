@@ -13,7 +13,7 @@ import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
 import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
-import com.hhplus.ecommerce.global.common.exception.BusinessException;
+import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

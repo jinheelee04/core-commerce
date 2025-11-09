@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.global.common.exception;
+package com.hhplus.ecommerce.global.exception;
 
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
