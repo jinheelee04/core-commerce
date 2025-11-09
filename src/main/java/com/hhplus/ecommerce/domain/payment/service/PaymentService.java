@@ -8,6 +8,8 @@ import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
+import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
+import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
 import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
@@ -16,6 +18,7 @@ import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -30,6 +33,7 @@ public class PaymentService {
     private final OrderService orderService;
     private final CouponService couponService;
     private final RestClient restClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${mock.payment.url}")
     private String mockPaymentUrl;
@@ -138,7 +142,6 @@ public class PaymentService {
 
     private Payment createPendingPayment(Long orderId, Long amount, PaymentMethod paymentMethod, String clientRequestId) {
         Long paymentId = paymentRepository.generateNextId();
-        // 도메인 모델의 정적 팩토리 메서드 사용
         return Payment.createPending(paymentId, orderId, amount, paymentMethod, clientRequestId);
     }
 
@@ -181,7 +184,7 @@ public class PaymentService {
         payment.markAsSuccess(transactionId);
         paymentRepository.save(payment);
 
-        orderService.completePayment(order.getId());
+        eventPublisher.publishEvent(PaymentCompletedEvent.of(order.getId(), payment.getId(), transactionId));
 
         log.info("[Payment] 결제 성공 처리 완료 - paymentId: {}, orderId: {}, transactionId: {}",
                 payment.getId(), order.getId(), transactionId);
@@ -194,7 +197,7 @@ public class PaymentService {
         payment.markAsFailed(failReason);
         paymentRepository.save(payment);
 
-        orderService.cancelOrder(order.getId(), "결제 실패: " + failReason);
+        eventPublisher.publishEvent(PaymentFailedEvent.of(order.getId(), payment.getId(), "결제 실패: " + failReason));
 
         log.info("[Payment] 결제 실패 처리 완료 - paymentId: {}, orderId: {}", payment.getId(), order.getId());
     }
@@ -207,7 +210,7 @@ public class PaymentService {
         payment.markAsFailed(errorMessage);
         paymentRepository.save(payment);
 
-        orderService.cancelOrder(order.getId(), "결제 처리 중 오류 발생");
+        eventPublisher.publishEvent(PaymentFailedEvent.of(order.getId(), payment.getId(), "결제 처리 중 오류 발생"));
 
         log.info("[Payment] 결제 예외 처리 완료 - paymentId: {}, status: FAILED", payment.getId());
     }

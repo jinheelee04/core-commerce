@@ -11,17 +11,22 @@ import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderItem;
 import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
 import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
+import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
+import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
 import com.hhplus.ecommerce.global.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -333,6 +338,38 @@ public class OrderService {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
             productService.incrementSalesCount(item.getProductId(), item.getQuantity());
+        }
+    }
+
+    // ========== Event Listeners ==========
+
+    /**
+     * 결제 완료 이벤트 리스너
+     * PaymentService에서 결제가 성공하면 주문 상태를 PAID로 변경
+     */
+    @EventListener
+    public void handlePaymentCompleted(PaymentCompletedEvent event) {
+        try {
+            completePayment(event.getOrderId());
+            log.info("[Order] 결제 완료 처리 - orderId: {}", event.getOrderId());
+        } catch (Exception e) {
+            log.error("[Order] 결제 완료 처리 실패 - orderId: {}, error: {}",
+                    event.getOrderId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 결제 실패 이벤트 리스너
+     * PaymentService에서 결제가 실패하면 주문을 취소
+     */
+    @EventListener
+    public void handlePaymentFailed(PaymentFailedEvent event) {
+        try {
+            cancelOrder(event.getOrderId(), event.getFailReason());
+            log.info("[Order] 주문 취소 처리 - orderId: {}", event.getOrderId());
+        } catch (Exception e) {
+            log.error("[Order] 주문 취소 처리 실패 - orderId: {}, error: {}",
+                    event.getOrderId(), e.getMessage(), e);
         }
     }
 }

@@ -10,6 +10,8 @@ import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
+import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
+import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
 import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
@@ -20,9 +22,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClient.RequestBodySpec;
 import org.springframework.web.client.RestClient.RequestBodyUriSpec;
@@ -54,6 +58,9 @@ class PaymentServiceTest {
 
     @Mock
     private CouponService couponService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock(lenient = true)
     private RequestBodyUriSpec requestBodyUriSpec;
@@ -167,7 +174,13 @@ class PaymentServiceTest {
         assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
         assertThat(response.failReason()).isNull();
 
-        verify(orderService).completePayment(ORDER_ID);
+        // 이벤트 발행 검증
+        ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        PaymentCompletedEvent event = eventCaptor.getValue();
+        assertThat(event.getOrderId()).isEqualTo(ORDER_ID);
+        assertThat(event.getPaymentId()).isEqualTo(PAYMENT_ID);
+        assertThat(event.getTransactionId()).isEqualTo(TRANSACTION_ID);
     }
 
     @Test
@@ -195,7 +208,13 @@ class PaymentServiceTest {
         assertThat(response.failReason()).isEqualTo(failReason);
         assertThat(response.transactionId()).isNull();
 
-        verify(orderService).cancelOrder(ORDER_ID, "결제 실패: " + failReason);
+        // 이벤트 발행 검증
+        ArgumentCaptor<PaymentFailedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentFailedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        PaymentFailedEvent event = eventCaptor.getValue();
+        assertThat(event.getOrderId()).isEqualTo(ORDER_ID);
+        assertThat(event.getPaymentId()).isEqualTo(PAYMENT_ID);
+        assertThat(event.getFailReason()).isEqualTo("결제 실패: " + failReason);
     }
 
     @Test
@@ -271,7 +290,8 @@ class PaymentServiceTest {
         assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
         assertThat(response.failReason()).contains("이미 동일한 transactionId");
 
-        verify(orderService, never()).completePayment(anyLong());
+        // 이벤트가 발행되지 않아야 함
+        verify(eventPublisher, never()).publishEvent(any(PaymentCompletedEvent.class));
     }
 
     // ========== 예외 시나리오 테스트 ==========
@@ -350,7 +370,12 @@ class PaymentServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.PAYMENT_FAILED);
 
-        verify(orderService).cancelOrder(eq(ORDER_ID), anyString());
+        // 이벤트 발행 검증
+        ArgumentCaptor<PaymentFailedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentFailedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        PaymentFailedEvent event = eventCaptor.getValue();
+        assertThat(event.getOrderId()).isEqualTo(ORDER_ID);
+        assertThat(event.getFailReason()).isEqualTo("결제 처리 중 오류 발생");
     }
 
     // ========== 결제 조회 테스트 ==========
@@ -492,7 +517,11 @@ class PaymentServiceTest {
         assertThat(response.couponInfo().couponName()).isEqualTo(couponName);
         assertThat(response.couponInfo().discountAmount()).isEqualTo(discountAmount);
 
-        verify(orderService).completePayment(ORDER_ID);
+        // 이벤트 발행 검증
+        ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        PaymentCompletedEvent event = eventCaptor.getValue();
+        assertThat(event.getOrderId()).isEqualTo(ORDER_ID);
     }
 
     @Test
@@ -533,8 +562,12 @@ class PaymentServiceTest {
         assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
         assertThat(response.failReason()).isEqualTo(failReason);
 
-        // 주문 취소 호출 확인 - 주문 취소 시 쿠폰도 자동 복구됨
-        verify(orderService).cancelOrder(ORDER_ID, "결제 실패: " + failReason);
+        // 이벤트 발행 검증 - 주문 취소 시 쿠폰도 자동 복구됨
+        ArgumentCaptor<PaymentFailedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentFailedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        PaymentFailedEvent event = eventCaptor.getValue();
+        assertThat(event.getOrderId()).isEqualTo(ORDER_ID);
+        assertThat(event.getFailReason()).isEqualTo("결제 실패: " + failReason);
     }
 
     @Test

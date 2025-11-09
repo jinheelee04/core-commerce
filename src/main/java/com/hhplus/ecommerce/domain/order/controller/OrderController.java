@@ -2,7 +2,6 @@ package com.hhplus.ecommerce.domain.order.controller;
 
 import com.hhplus.ecommerce.domain.order.dto.*;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
-import com.hhplus.ecommerce.domain.payment.service.PaymentService;
 import com.hhplus.ecommerce.global.common.dto.CommonResponse;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +26,6 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final PaymentService paymentService;
 
     @Operation(summary = "주문 생성", description = "장바구니 항목들로 주문을 생성합니다")
     @ApiResponses({
