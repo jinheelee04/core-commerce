@@ -5,6 +5,8 @@ import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.service.PaymentService;
 import com.hhplus.ecommerce.global.common.dto.CommonResponse;
+import com.hhplus.ecommerce.global.constants.HttpHeaders;
+import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,8 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "결제 API", description = "결제 처리 관련 API")
-@SecurityRequirement(name = "X-User-Id")
+@Tag(name = "결제 API", description = "결제 처리 및 조회 관련 API")
+@SecurityRequirement(name = SecurityConstants.SECURITY_SCHEME_NAME)
 @RestController
 @RequestMapping("/api/v1/payments")
 @RequiredArgsConstructor
@@ -37,7 +39,7 @@ public class PaymentController {
     })
     @PostMapping
     public ResponseEntity<CommonResponse<PaymentResponse>> processPayment(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "멱등성 키 (중복 결제 방지용)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody PaymentRequest request
@@ -55,7 +57,7 @@ public class PaymentController {
     })
     @GetMapping("/{paymentId}")
     public ResponseEntity<CommonResponse<PaymentResponse>> getPayment(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "결제 ID", example = "789", required = true)
             @PathVariable Long paymentId
     ) {
@@ -70,7 +72,7 @@ public class PaymentController {
     })
     @GetMapping("/order/{orderId}")
     public ResponseEntity<CommonResponse<PaymentResponse>> getPaymentByOrder(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "주문 ID", example = "456", required = true)
             @PathVariable Long orderId
     ) {

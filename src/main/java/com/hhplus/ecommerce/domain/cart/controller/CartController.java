@@ -6,6 +6,8 @@ import com.hhplus.ecommerce.domain.cart.dto.CartResponse;
 import com.hhplus.ecommerce.domain.cart.dto.UpdateCartItemRequest;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
 import com.hhplus.ecommerce.global.common.dto.CommonResponse;
+import com.hhplus.ecommerce.global.constants.HttpHeaders;
+import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,7 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "장바구니 API", description = "장바구니 관리 관련 API")
-@SecurityRequirement(name = "X-User-Id")
+@SecurityRequirement(name = SecurityConstants.SECURITY_SCHEME_NAME)
 @RestController
 @RequestMapping("/api/v1/carts")
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class CartController {
     })
     @GetMapping("/me")
     public ResponseEntity<CommonResponse<CartResponse>> getCart(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId
     ) {
         CartResponse response = cartService.getCart(userId);
         return ResponseEntity.ok(CommonResponse.success(response));
@@ -46,7 +48,7 @@ public class CartController {
     })
     @PostMapping("/items")
     public ResponseEntity<CommonResponse<CartItemAddResponse>> addCartItem(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Valid @RequestBody AddCartItemRequest request
     ) {
         CartItemAddResponse response = cartService.addItem(userId, request.productId(), request.quantity());
@@ -60,7 +62,7 @@ public class CartController {
     })
     @PatchMapping("/items/{cartItemId}")
     public ResponseEntity<CommonResponse<CartItemAddResponse>> updateCartItem(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "장바구니 항목 ID", example = "1", required = true)
             @PathVariable Long cartItemId,
             @Valid @RequestBody UpdateCartItemRequest request
@@ -76,7 +78,7 @@ public class CartController {
     })
     @DeleteMapping("/items/{cartItemId}")
     public ResponseEntity<Void> deleteCartItem(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "장바구니 항목 ID", example = "1", required = true)
             @PathVariable Long cartItemId
     ) {
@@ -90,7 +92,7 @@ public class CartController {
     })
     @DeleteMapping("/items")
     public ResponseEntity<Void> clearCart(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId
     ) {
         cartService.clearCart(userId);
         return ResponseEntity.noContent().build();

@@ -5,6 +5,8 @@ import com.hhplus.ecommerce.domain.coupon.dto.IssueCouponRequest;
 import com.hhplus.ecommerce.domain.coupon.dto.UserCouponResponse;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.global.common.dto.CommonResponse;
+import com.hhplus.ecommerce.global.constants.HttpHeaders;
+import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,7 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Tag(name = "쿠폰 API", description = "쿠폰 발급 및 조회 관련 API")
-@SecurityRequirement(name = "X-User-Id")
+@SecurityRequirement(name = SecurityConstants.SECURITY_SCHEME_NAME)
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -38,7 +40,7 @@ public class CouponController {
     })
     @GetMapping("/coupons/available")
     public ResponseEntity<CommonResponse<List<CouponResponse>>> getAvailableCoupons(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId
     ) {
         List<CouponResponse> responses = couponService.getAvailableCoupons();
         return ResponseEntity.ok(CommonResponse.success(responses));
@@ -56,7 +58,7 @@ public class CouponController {
     })
     @PostMapping("/users/me/coupons")
     public ResponseEntity<CommonResponse<UserCouponResponse>> issueCoupon(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Valid @RequestBody IssueCouponRequest request
     ) {
         UserCouponResponse response = couponService.issueCoupon(userId, request.couponId());
@@ -72,7 +74,7 @@ public class CouponController {
     })
     @GetMapping("/users/me/coupons")
     public ResponseEntity<CommonResponse<List<UserCouponResponse>>> getUserCoupons(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "사용 여부 필터 (true: 사용됨, false: 미사용)", example = "false")
             @RequestParam(required = false) Boolean isUsed
     ) {
@@ -97,7 +99,7 @@ public class CouponController {
     })
     @GetMapping("/coupons/{couponId}")
     public ResponseEntity<CommonResponse<CouponResponse>> getCoupon(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "쿠폰 ID", example = "1", required = true)
             @PathVariable Long couponId
     ) {

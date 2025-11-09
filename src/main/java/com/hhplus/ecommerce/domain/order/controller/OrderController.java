@@ -4,6 +4,8 @@ import com.hhplus.ecommerce.domain.order.dto.*;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.global.common.dto.CommonResponse;
 import com.hhplus.ecommerce.global.common.dto.PagedResult;
+import com.hhplus.ecommerce.global.constants.HttpHeaders;
+import com.hhplus.ecommerce.global.constants.SecurityConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @Tag(name = "주문 API", description = "주문 생성 및 관리 관련 API")
-@SecurityRequirement(name = "X-User-Id")
+@SecurityRequirement(name = SecurityConstants.SECURITY_SCHEME_NAME)
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
@@ -35,7 +37,7 @@ public class OrderController {
     })
     @PostMapping
     public ResponseEntity<CommonResponse<OrderResponse>> createOrder(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Valid @RequestBody CreateOrderRequest request
     ) {
         OrderResponse response = orderService.createOrder(
@@ -56,7 +58,7 @@ public class OrderController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<OrderResponse>> getOrder(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @PathVariable Long id
     ) {
         OrderResponse response = orderService.getOrder(userId, id);
@@ -69,7 +71,7 @@ public class OrderController {
     })
     @GetMapping
     public ResponseEntity<CommonResponse<List<OrderSummaryResponse>>> getOrders(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
     ) {
@@ -85,7 +87,7 @@ public class OrderController {
     })
     @PatchMapping("/{id}")
     public ResponseEntity<CommonResponse<CancelOrderResponse>> cancelOrder(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") Long userId,
+            @Parameter(hidden = true) @RequestHeader(HttpHeaders.X_USER_ID) Long userId,
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderRequest request
     ) {
