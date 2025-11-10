@@ -111,8 +111,7 @@ public class Inventory {
     // 재고 수정
     public void updateStock(int newStock) {
         if (newStock < this.reservedStock) {
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    "재고는 예약된 수량(" + this.reservedStock + ")보다 적을 수 없습니다.");
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK);
         }
         this.stock = newStock;
     }

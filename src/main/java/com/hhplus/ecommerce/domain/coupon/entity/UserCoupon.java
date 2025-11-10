@@ -86,7 +86,7 @@ public class UserCoupon {
     // 쿠폰 사용
     public void use(Long orderId) {
         if (this.isUsed) {
-            throw new BusinessException(CouponErrorCode.ALREADY_USED_COUPON);
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
         }
         if (isExpired()) {
             throw new BusinessException(CouponErrorCode.COUPON_EXPIRED);

@@ -132,8 +132,7 @@ public class Coupon {
     // 쿠폰 사용 취소 (재고 복구)
     public void restore() {
         if (this.remainingQuantity >= this.totalQuantity) {
-            throw new BusinessException(CouponErrorCode.COUPON_RESTORE_FAILED,
-                    "쿠폰 재고가 총 수량을 초과할 수 없습니다.");
+            throw new BusinessException(CouponErrorCode.COUPON_RESTORE_FAILED);
         }
         this.remainingQuantity++;
     }
