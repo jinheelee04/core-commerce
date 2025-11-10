@@ -18,13 +18,20 @@ erDiagram
     USER ||--o| CART : has
     USER ||--o{ ORDER : places
     USER ||--o{ USER_COUPON : owns
+    USER ||--o{ USER_ADDRESS : manages
 
     CART ||--o{ CART_ITEM : contains
     PRODUCT ||--o{ CART_ITEM : in
 
     ORDER ||--o{ ORDER_ITEM : contains
-    ORDER ||--o| PAYMENT : has
+    ORDER ||--o{ PAYMENT : "has (multiple attempts)"
     ORDER ||--o| USER_COUPON : uses
+    ORDER ||--o{ ORDER_STATUS_HISTORY : tracks
+    USER_ADDRESS ||--o{ ORDER : "selected for"
+
+    CATEGORY ||--o{ CATEGORY : "parent-child"
+    CATEGORY ||--o{ PRODUCT : categorizes
+    BRAND ||--o{ PRODUCT : manufactures
 
     PRODUCT ||--o{ ORDER_ITEM : in
     PRODUCT ||--|| INVENTORY : "has stock"
@@ -40,13 +47,51 @@ erDiagram
         timestamp updated_at
     }
 
+    USER_ADDRESS {
+        bigint id PK
+        bigint user_id FK
+        string address_name
+        string recipient_name
+        string recipient_phone
+        string postal_code
+        string address
+        string address_detail
+        boolean is_default
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CATEGORY {
+        bigint id PK
+        bigint parent_id FK
+        string name
+        string name_en
+        int level
+        int display_order
+        string image_url
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BRAND {
+        bigint id PK
+        string name UK
+        string name_en
+        string logo_url
+        text description
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
     PRODUCT {
         bigint id PK
+        bigint category_id FK
+        bigint brand_id FK
         string name
         text description
         bigint price
-        string category
-        string brand
         string image_url
         string status
         timestamp created_at
@@ -72,12 +117,17 @@ erDiagram
     ORDER {
         bigint id PK
         bigint user_id FK
+        bigint user_address_id FK
         string order_number UK
         string status
         bigint items_total
         bigint discount_amount
         bigint final_amount
-        string delivery_address
+        string recipient_name
+        string recipient_phone
+        string postal_code
+        string address
+        string address_detail
         text delivery_memo
         timestamp expires_at
         timestamp paid_at
@@ -85,6 +135,16 @@ erDiagram
         string cancel_reason
         timestamp created_at
         timestamp updated_at
+    }
+
+    ORDER_STATUS_HISTORY {
+        bigint id PK
+        bigint order_id FK
+        string previous_status
+        string new_status
+        timestamp changed_at
+        bigint changed_by
+        text reason
     }
 
     ORDER_ITEM {
@@ -177,20 +237,161 @@ erDiagram
 
 ---
 
-### 2. Product (상품)
+### 2. UserAddress (사용자 배송지)
+
+**테이블명**: `user_addresses`
+
+| 컬럼명 | 타입 | NULL | 기본값 | 설명 |
+|-------|------|------|-------|------|
+| `id` | BIGINT | NO | AUTO_INCREMENT | 배송지 ID (PK) |
+| `user_id` | BIGINT | NO | - | 사용자 ID (FK) |
+| `address_name` | VARCHAR(50) | YES | - | 배송지명 (예: "집", "회사") |
+| `recipient_name` | VARCHAR(100) | NO | - | 수령인 이름 |
+| `recipient_phone` | VARCHAR(20) | NO | - | 수령인 전화번호 |
+| `postal_code` | VARCHAR(10) | NO | - | 우편번호 |
+| `address` | VARCHAR(200) | NO | - | 기본 주소 |
+| `address_detail` | VARCHAR(200) | YES | - | 상세 주소 |
+| `is_default` | BOOLEAN | NO | FALSE | 기본 배송지 여부 |
+| `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
+
+**제약조건**
+- PRIMARY KEY: `id`
+- UNIQUE KEY: `(user_id, address_name)` (사용자별 배송지명 중복 방지)
+
+**주요 컬럼 설명**
+
+- **`address_name` (배송지명)**
+  - **목적**: 사용자가 배송지를 구분하기 위한 별칭
+  - **예시**: "집", "회사", "부모님 댁" 등
+  - **UNIQUE 제약**: 같은 사용자는 동일한 이름의 배송지를 중복 등록 불가
+
+- **`is_default` (기본 배송지)**
+  - **목적**: 주문 시 자동 선택되는 배송지
+  - **비즈니스 규칙**: 사용자당 1개의 기본 배송지만 허용 (애플리케이션 레벨 제어)
+  - **구현 방식**:
+    ```java
+    // 새로운 기본 배송지 설정 시 기존 기본 배송지를 일반으로 변경
+    UPDATE user_addresses SET is_default = false WHERE user_id = ? AND is_default = true;
+    UPDATE user_addresses SET is_default = true WHERE id = ?;
+    ```
+
+- **배송지 재사용**
+  - **장점**: 자주 사용하는 배송지를 저장하여 매번 입력하지 않아도 됨
+  - **UX 개선**: 원클릭 주문 시 기본 배송지 자동 선택
+  - **지역별 배송비**: postal_code 기반 배송비 계산 가능
+
+---
+
+### 3. Category (카테고리)
+
+**테이블명**: `categories`
+
+| 컬럼명 | 타입 | NULL | 기본값 | 설명 |
+|-------|------|------|-------|------|
+| `id` | BIGINT | NO | AUTO_INCREMENT | 카테고리 ID (PK) |
+| `parent_id` | BIGINT | YES | - | 상위 카테고리 ID (FK, NULL이면 최상위) |
+| `name` | VARCHAR(100) | NO | - | 카테고리명 |
+| `name_en` | VARCHAR(100) | YES | - | 영문 카테고리명 (다국어 지원) |
+| `level` | INT | NO | - | 카테고리 레벨 (1=대분류, 2=중분류, 3=소분류) |
+| `display_order` | INT | NO | 0 | 표시 순서 |
+| `image_url` | VARCHAR(500) | YES | - | 카테고리 이미지 URL |
+| `is_active` | BOOLEAN | NO | TRUE | 활성 여부 |
+| `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
+
+**제약조건**
+- PRIMARY KEY: `id`
+
+**주요 컬럼 설명**
+
+- **`parent_id` (상위 카테고리)**
+  - **목적**: 계층형 카테고리 구조 지원
+  - **예시**:
+    ```
+    전자제품 (parent_id=NULL, level=1)
+      └ 노트북 (parent_id=1, level=2)
+          └ 게이밍 노트북 (parent_id=2, level=3)
+    ```
+  - **활용**: 카테고리 트리 구성, 브레드크럼 네비게이션
+
+- **`level` (카테고리 레벨)**
+  - **목적**: 카테고리 깊이 표시
+  - **비즈니스 규칙**: 최대 3단계까지 허용 (애플리케이션 레벨 제어)
+  - **성능**: level 기반 조회로 재귀 쿼리 방지
+
+- **`display_order` (표시 순서)**
+  - **목적**: 관리자가 지정한 순서대로 카테고리 표시
+  - **예시**: 인기 카테고리를 상단에 배치
+
+**데이터 예시**
+```sql
+-- 대분류
+INSERT INTO categories (id, parent_id, name, level, display_order)
+VALUES (1, NULL, '전자제품', 1, 1);
+
+-- 중분류
+INSERT INTO categories (id, parent_id, name, level, display_order)
+VALUES (2, 1, '노트북', 2, 1);
+
+-- 소분류
+INSERT INTO categories (id, parent_id, name, level, display_order)
+VALUES (3, 2, '게이밍 노트북', 3, 1);
+```
+
+---
+
+### 4. Brand (브랜드)
+
+**테이블명**: `brands`
+
+| 컬럼명 | 타입 | NULL | 기본값 | 설명 |
+|-------|------|------|-------|------|
+| `id` | BIGINT | NO | AUTO_INCREMENT | 브랜드 ID (PK) |
+| `name` | VARCHAR(100) | NO | - | 브랜드명 (UK) |
+| `name_en` | VARCHAR(100) | YES | - | 영문 브랜드명 |
+| `logo_url` | VARCHAR(500) | YES | - | 브랜드 로고 URL |
+| `description` | TEXT | YES | - | 브랜드 설명 |
+| `is_active` | BOOLEAN | NO | TRUE | 활성 여부 |
+| `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
+| `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
+
+**제약조건**
+- PRIMARY KEY: `id`
+- UNIQUE KEY: `name`
+
+**주요 컬럼 설명**
+
+- **`name` UNIQUE 제약**
+  - **목적**: 브랜드명 중복 방지 및 데이터 품질 향상
+  - **예시**: "Apple", "APPLE", "apple" → 하나의 브랜드로 통일
+  - **검색**: 브랜드명 기반 정확한 필터링 가능
+
+- **`logo_url` (브랜드 로고)**
+  - **목적**: 브랜드 페이지 구성 및 상품 목록에 표시
+  - **활용**: 브랜드 아이덴티티 강화
+
+- **브랜드 활용**
+  - 브랜드별 상품 목록
+  - 브랜드별 프로모션 적용
+  - 브랜드 스토어 페이지 구성
+
+---
+
+### 5. Product (상품)
 
 **테이블명**: `products`
 
 | 컬럼명 | 타입 | NULL | 기본값 | 설명 |
 |-------|------|------|-------|------|
 | `id` | BIGINT | NO | AUTO_INCREMENT | 상품 ID (PK) |
+| `category_id` | BIGINT | NO | - | 카테고리 ID (FK) |
+| `brand_id` | BIGINT | YES | - | 브랜드 ID (FK) |
 | `name` | VARCHAR(255) | NO | - | 상품명 |
 | `description` | TEXT | YES | - | 상품 설명 |
 | `price` | BIGINT | NO | - | 가격 (원 단위) |
-| `category` | VARCHAR(50) | NO | - | 카테고리 |
-| `brand` | VARCHAR(100) | YES | - | 브랜드 |
 | `image_url` | VARCHAR(500) | YES | - | 이미지 URL |
-| `status` | VARCHAR(20) | NO | 'AVAILABLE' | 상품 상태 |
+| `status` | VARCHAR(20) | NO | 'ACTIVE' | 상품 상태 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
 
@@ -198,12 +399,44 @@ erDiagram
 - PRIMARY KEY: `id`
 
 **상태 값**
-- `AVAILABLE`: 판매 가능
-- `OUT_OF_STOCK`: 품절
+- `ACTIVE`: 판매 중 (활성 상품)
+- `INACTIVE`: 판매 중지 (비활성)
+- `DISCONTINUED`: 단종 (더 이상 판매하지 않음)
+
+**주요 컬럼 설명**
+
+- **`category_id` (카테고리 ID)**
+  - **목적**: 상품의 카테고리 분류
+  - **정규화**: Category 테이블과 연결하여 데이터 일관성 유지
+  - **활용**:
+    - 카테고리별 상품 목록 조회
+    - 계층형 카테고리 네비게이션
+    - 카테고리별 프로모션 적용
+  - **예시**:
+    ```sql
+    -- 노트북 카테고리의 모든 상품 조회
+    SELECT p.* FROM products p
+    JOIN categories c ON p.category_id = c.id
+    WHERE c.id = 2 OR c.parent_id = 2;
+    ```
+
+- **`brand_id` (브랜드 ID)**
+  - **목적**: 상품의 브랜드 정보
+  - **NULL 허용**: 브랜드가 없는 상품 (자체 제작 상품 등)
+  - **정규화**: Brand 테이블과 연결하여 브랜드명 중복 방지
+  - **활용**:
+    - 브랜드별 상품 필터링
+    - 브랜드 페이지 구성
+    - 브랜드별 매출 분석
+
+> **참고**:
+> - 품절 여부는 `Inventory.available_stock` (= stock - reserved_stock)으로 판단합니다.
+> - Product의 status는 상품 자체의 판매 가능 여부만 나타냅니다.
+> - category와 brand를 정규화하여 데이터 품질 및 확장성을 향상시켰습니다.
 
 ---
 
-### 3. Cart (장바구니)
+### 6. Cart (장바구니)
 
 **테이블명**: `carts`
 
@@ -218,9 +451,9 @@ erDiagram
 - PRIMARY KEY: `id`
 - UNIQUE KEY: `user_id` (1 사용자 = 1 장바구니)
 
----USER_COUPON
+---
 
-### 4. CartItem (장바구니 항목)
+### 7. CartItem (장바구니 항목)
 
 **테이블명**: `cart_items`
 
@@ -255,7 +488,7 @@ erDiagram
 
 ---
 
-### 5. Order (주문)
+### 8. Order (주문)
 
 **테이블명**: `orders`
 
@@ -263,12 +496,17 @@ erDiagram
 |-------|------|------|-------|------|
 | `id` | BIGINT | NO | AUTO_INCREMENT | 주문 ID (PK) |
 | `user_id` | BIGINT | NO | - | 사용자 ID (FK) |
+| `user_address_id` | BIGINT | YES | - | 사용자 배송지 ID (FK, 참고용) |
 | `order_number` | VARCHAR(50) | NO | - | 주문번호 (UK) |
 | `status` | VARCHAR(20) | NO | 'PENDING' | 주문 상태 |
 | `items_total` | BIGINT | NO | 0 | 상품 합계 금액 |
 | `discount_amount` | BIGINT | NO | 0 | 할인 금액 |
 | `final_amount` | BIGINT | NO | 0 | 최종 결제 금액 |
-| `delivery_address` | VARCHAR(500) | NO | - | 배송 주소 |
+| `recipient_name` | VARCHAR(100) | NO | - | 수령인 이름 (스냅샷) |
+| `recipient_phone` | VARCHAR(20) | NO | - | 수령인 전화번호 (스냅샷) |
+| `postal_code` | VARCHAR(10) | NO | - | 우편번호 (스냅샷) |
+| `address` | VARCHAR(200) | NO | - | 기본 주소 (스냅샷) |
+| `address_detail` | VARCHAR(200) | YES | - | 상세 주소 (스냅샷) |
 | `delivery_memo` | TEXT | YES | - | 배송 메모 |
 | `expires_at` | TIMESTAMP | YES | - | 만료 시간 (15분) |
 | `paid_at` | TIMESTAMP | YES | - | 결제 완료 시간 |
@@ -312,6 +550,21 @@ erDiagram
     - 배치 작업에서 `expires_at < NOW() AND status = 'PENDING'` 조건으로 취소 처리
   - **재고 관리**: 만료된 주문의 예약 재고를 다시 판매 가능 재고로 전환
 
+- **`user_address_id` (사용자 배송지 ID)**
+  - **목적**: 어느 배송지를 선택했는지 참고용으로 기록
+  - **NULL 허용**: 직접 입력한 배송지의 경우 NULL
+  - **주의**: 실제 배송에는 스냅샷 컬럼을 사용 (사용자가 배송지 수정해도 주문 정보는 불변)
+
+- **배송지 스냅샷 컬럼들** (`recipient_name`, `recipient_phone`, `postal_code`, `address`, `address_detail`)
+  - **목적**: 주문 시점의 배송지 정보 영구 보존
+  - **왜 user_addresses를 참조하지 않는가?**:
+    - 사용자가 배송지를 수정/삭제해도 주문 정보는 변경되지 않아야 함
+    - 배송 완료 후에도 배송지 정보가 보존되어야 함 (CS, 재배송 등)
+    - 법적/회계적으로 주문 당시 배송지 정보 유지 필요
+  - **실무 시나리오**:
+    - 사용자가 "집" 배송지를 서울 → 부산으로 변경
+    - 과거 주문의 배송지는 여전히 "서울"로 표시 (스냅샷 유지)
+
 - **`items_total`, `discount_amount`, `final_amount`**
   - **목적**: 금액 계산의 추적성 및 감사(Audit) 목적
   - **왜 계산값을 저장하는가?**:
@@ -322,7 +575,76 @@ erDiagram
 
 ---
 
-### 6. OrderItem (주문 항목)
+### 9. OrderStatusHistory (주문 상태 이력)
+
+**테이블명**: `order_status_histories`
+
+| 컬럼명 | 타입 | NULL | 기본값 | 설명 |
+|-------|------|------|-------|------|
+| `id` | BIGINT | NO | AUTO_INCREMENT | 이력 ID (PK) |
+| `order_id` | BIGINT | NO | - | 주문 ID (FK) |
+| `previous_status` | VARCHAR(20) | YES | - | 이전 상태 |
+| `new_status` | VARCHAR(20) | NO | - | 새 상태 |
+| `changed_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 상태 변경 일시 |
+| `changed_by` | BIGINT | YES | - | 변경자 ID (관리자 or 시스템) |
+| `reason` | TEXT | YES | - | 변경 사유 |
+
+**제약조건**
+- PRIMARY KEY: `id`
+
+**주요 컬럼 설명**
+
+- **`previous_status` / `new_status` (이전 상태 / 새 상태)**
+  - **목적**: 주문 상태 변경 이력 추적
+  - **NULL 허용 (previous_status)**: 주문 생성 시 이전 상태 없음
+  - **활용**:
+    - 고객 문의 시 상태 변경 이력 제공
+    - 배송 지연 패턴 분석
+    - 이상 징후 탐지 (비정상적인 상태 전이)
+
+- **`changed_by` (변경자)**
+  - **목적**: 누가 상태를 변경했는지 기록
+  - **NULL 허용**: 시스템 자동 변경의 경우 NULL
+  - **값**:
+    - `NULL`: 시스템 자동 처리 (결제 성공, 만료 등)
+    - `관리자 ID`: 관리자가 수동으로 변경
+    - `사용자 ID`: 사용자가 취소
+
+- **`reason` (변경 사유)**
+  - **목적**: 상태 변경 이유 기록
+  - **예시**:
+    - "결제 성공"
+    - "결제 실패: 카드 한도 초과"
+    - "관리자 취소: 재고 부족"
+    - "사용자 요청: 단순 변심"
+
+**활용 사례**
+
+```sql
+-- 특정 주문의 상태 변경 이력 조회
+SELECT
+  previous_status,
+  new_status,
+  changed_at,
+  reason
+FROM order_status_histories
+WHERE order_id = 123
+ORDER BY changed_at ASC;
+
+-- 결과 예시:
+-- NULL → PENDING (2025-01-28 10:00:00) "주문 생성"
+-- PENDING → PAID (2025-01-28 10:05:00) "결제 성공"
+-- PAID → CONFIRMED (2025-01-28 10:10:00) "주문 확정"
+```
+
+**실무 활용**
+- CS 대응: 고객에게 주문 진행 상황 상세 안내
+- 분석: 결제 → 배송 평균 소요 시간 계산
+- 감사: 관리자 취소 이력 추적
+
+---
+
+### 10. OrderItem (주문 항목)
 
 **테이블명**: `order_items`
 
@@ -359,7 +681,7 @@ erDiagram
 
 ---
 
-### 7. Payment (결제)
+### 11. Payment (결제)
 
 **테이블명**: `payments`
 
@@ -422,7 +744,7 @@ erDiagram
 
 ---
 
-### 8. Coupon (쿠폰)
+### 12. Coupon (쿠폰)
 
 **테이블명**: `coupons`
 
@@ -481,7 +803,7 @@ erDiagram
 
 ---
 
-### 9. UserCoupon (사용자 쿠폰)
+### 13. UserCoupon (사용자 쿠폰)
 
 **테이블명**: `user_coupons`
 
@@ -527,6 +849,29 @@ erDiagram
     - 주문 취소 시 쿠폰 복구 가능 여부 판단
     - 쿠폰 사용 통계 및 효과 분석
 
+- **`expires_at` (만료일시)**
+  - **목적**: 사용자별 쿠폰 사용 가능 기한 관리
+  - **Coupon.ends_at과의 차이**:
+    - `Coupon.starts_at / ends_at`: 쿠폰 **발급 기간** (예: 2025-01-01 ~ 2025-12-31)
+    - `UserCoupon.expires_at`: 발급받은 쿠폰의 **사용 가능 기한** (예: 발급 후 30일)
+  - **설정 방식**:
+    - 옵션 1: 발급일 기준 N일 후 (`issued_at + 30 days`)
+    - 옵션 2: 쿠폰의 `ends_at`과 동일 (쿠폰 발급 기간 종료일)
+    - **권장**: 발급일 기준 N일 후 방식 (사용자별 유효기간 독립 관리)
+  - **검증 조건**:
+    - 쿠폰 사용 시: `expires_at > NOW() AND is_used = false`
+    - 만료된 쿠폰은 사용 불가
+  - **예시**:
+    ```
+    Coupon.starts_at = 2025-01-01, Coupon.ends_at = 2025-12-31
+    사용자 A가 2025-01-15에 발급
+    → UserCoupon.expires_at = 2025-02-14 (발급 후 30일)
+
+    사용자 B가 2025-12-20에 발급
+    → UserCoupon.expires_at = 2026-01-19 (발급 후 30일)
+      또는 2025-12-31 (쿠폰 종료일과 동일)
+    ```
+
 - **`is_used` / `used_at`**
   - **목적**: 쿠폰 사용 여부 및 사용 시점 기록
   - **동시성 제어**:
@@ -535,7 +880,7 @@ erDiagram
 
 ---
 
-### 10. Inventory (재고)
+### 14. Inventory (재고)
 
 **테이블명**: `inventory`
 
@@ -545,6 +890,7 @@ erDiagram
 | `product_id` | BIGINT | NO | - | 상품 ID (FK, UK) |
 | `stock` | INT | NO | 0 | 현재 재고 |
 | `reserved_stock` | INT | NO | 0 | 예약 재고 |
+| `available_stock` | INT (GENERATED) | NO | - | 판매 가능 재고 (stock - reserved_stock) |
 | `low_stock_threshold` | INT | NO | 10 | 낮은 재고 기준 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
@@ -553,10 +899,17 @@ erDiagram
 - PRIMARY KEY: `id`
 - UNIQUE KEY: `product_id` (1 상품 = 1 재고)
 
-**계산 필드**
+**생성 컬럼 (Generated Column)**
 ```sql
-available_stock = stock - reserved_stock
+-- MySQL 5.7.6 이상에서 지원
+ALTER TABLE inventory ADD COLUMN available_stock INT
+  GENERATED ALWAYS AS (stock - reserved_stock) VIRTUAL;
 ```
+
+> **참고**:
+> - `available_stock`은 VIRTUAL 생성 컬럼으로 물리적 저장 공간을 차지하지 않습니다.
+> - 조회 시마다 계산되므로 항상 최신 값을 반환합니다.
+> - 인메모리 구현 시에는 애플리케이션 레벨에서 계산하여 반환합니다.
 
 **주요 컬럼 설명**
 
