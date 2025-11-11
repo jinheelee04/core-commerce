@@ -19,8 +19,9 @@ public class Inventory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id", nullable = false, unique = true)
-    private Long productId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false, unique = true)
+    private Product product;
 
     @Column(nullable = false)
     private Integer stock = 0;
@@ -57,25 +58,25 @@ public class Inventory {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // 비즈니스 로직용 생성자
-    public Inventory(Long productId, Integer stock, Integer lowStockThreshold) {
-        this.productId = productId;
+    // ========== 생성자 ==========
+
+    public Inventory(Product product, Integer stock, Integer lowStockThreshold) {
+        this.product = product;
         this.stock = stock != null ? stock : 0;
         this.reservedStock = 0;
         this.lowStockThreshold = lowStockThreshold != null ? lowStockThreshold : 10;
     }
 
-    // 가용 재고 계산
+    // ========== 비즈니스 로직 ==========
+
     public int getAvailableStock() {
         return stock - reservedStock;
     }
 
-    // 재고 부족 확인
     public boolean isLowStock() {
         return getAvailableStock() <= lowStockThreshold;
     }
 
-    // 재고 예약
     public void reserve(int quantity) {
         if (getAvailableStock() < quantity) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK);
@@ -83,7 +84,6 @@ public class Inventory {
         this.reservedStock += quantity;
     }
 
-    // 예약 해제
     public void releaseReservation(int quantity) {
         if (this.reservedStock < quantity) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_RESERVED_STOCK);
@@ -91,7 +91,6 @@ public class Inventory {
         this.reservedStock -= quantity;
     }
 
-    // 예약 확정 (재고 차감)
     public void confirmReservation(int quantity) {
         if (this.reservedStock < quantity) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_RESERVED_STOCK);
@@ -103,12 +102,10 @@ public class Inventory {
         this.reservedStock -= quantity;
     }
 
-    // 재고 추가
     public void addStock(int quantity) {
         this.stock += quantity;
     }
 
-    // 재고 수정
     public void updateStock(int newStock) {
         if (newStock < this.reservedStock) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK);

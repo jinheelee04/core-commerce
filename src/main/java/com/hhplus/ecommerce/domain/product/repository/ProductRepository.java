@@ -1,19 +1,13 @@
 package com.hhplus.ecommerce.domain.product.repository;
 
-import com.hhplus.ecommerce.domain.product.model.product.Product;
-import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
-import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
+import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.domain.product.entity.ProductStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-import java.util.Optional;
+public interface ProductRepository extends JpaRepository<Product, Long>, ProductRepositoryCustom {
 
-public interface ProductRepository {
-    Product save(Product product);
-    Optional<Product> findById(Long id);
-    List<Product> findAll();
-    List<Product> findByCategory(ProductCategory category);
-    List<Product> findByStatus(ProductStatus status);
-    List<Product> findByCategoryAndStatus(ProductCategory category, ProductStatus status);
-    void deleteById(Long id);
-    Long generateNextId();
+    Page<Product> findByStatus(ProductStatus status, Pageable pageable);
+
 }

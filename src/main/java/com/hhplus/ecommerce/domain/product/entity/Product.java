@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.product.entity;
 
+import com.hhplus.ecommerce.domain.brand.entity.Brand;
+import com.hhplus.ecommerce.domain.category.entity.Category;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,11 +19,13 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
-    @Column(name = "brand_id")
-    private Long brandId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -72,17 +76,20 @@ public class Product {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // 비즈니스 로직용 생성자
-    public Product(Long categoryId, Long brandId, String name, String description,
+    // ========== 생성자 ==========
+
+    public Product(Category category, Brand brand, String name, String description,
                    Long price, String imageUrl) {
-        this.categoryId = categoryId;
-        this.brandId = brandId;
+        this.category = category;
+        this.brand = brand;
         this.name = name;
         this.description = description;
         this.price = price;
         this.imageUrl = imageUrl;
         this.status = ProductStatus.ACTIVE;
     }
+
+    // ========== 비즈니스 로직 ==========
 
     // 상품 정보 수정
     public void updateInfo(String name, String description, Long price, String imageUrl) {

@@ -8,8 +8,8 @@ import com.hhplus.ecommerce.domain.cart.model.Cart;
 import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.cart.repository.CartItemRepository;
 import com.hhplus.ecommerce.domain.cart.repository.CartRepository;
-import com.hhplus.ecommerce.domain.product.model.Inventory;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
+import com.hhplus.ecommerce.domain.product.entity.Inventory;
+import com.hhplus.ecommerce.domain.product.entity.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -178,7 +178,7 @@ public class CartService {
 
     private CartItemResponse toCartItemResponse(CartItem cartItem, Map<Long, Product> productMap, Map<Long, Inventory> inventoryMap) {
         Product product = productMap.getOrDefault(cartItem.getProductId(), null);
-        Inventory inventory = inventoryMap.getOrDefault(cartItem.getProductId(), Inventory.empty());
+        Inventory inventory = inventoryMap.getOrDefault(cartItem.getProductId(), new Inventory(null, 0, 0));
 
         return CartItemResponse.of(
                 cartItem.getId(),

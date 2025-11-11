@@ -13,7 +13,7 @@ import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
 import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
+import com.hhplus.ecommerce.domain.product.entity.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
 import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;

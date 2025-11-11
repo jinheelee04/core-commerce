@@ -1,25 +1,27 @@
 package com.hhplus.ecommerce.domain.product.service;
 
 import com.hhplus.ecommerce.domain.product.dto.ProductResponse;
+import com.hhplus.ecommerce.domain.product.entity.Inventory;
+import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.domain.product.entity.ProductStatus;
 import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
-import com.hhplus.ecommerce.domain.product.model.Inventory;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
-import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
-import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 import com.hhplus.ecommerce.domain.product.repository.InventoryRepository;
 import com.hhplus.ecommerce.domain.product.repository.ProductRepository;
 import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -30,69 +32,35 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
+    @Transactional
     public ProductResponse getProductDetail(Long id) {
         Product product = findProductById(id);
-        Inventory inventory = getInventory(id);
 
         product.incrementViewCount();
-        productRepository.save(product);
 
-        return ProductResponse.of(
-                product.getId(),
-                product.getName(),
-                product.getDescription(),
-                product.getPrice(),
-                product.getCategory().name(),
-                product.getBrand(),
-                product.getImageUrl(),
-                product.getStatus().name(),
-                inventory.getStock(),
-                inventory.getReservedStock(),
-                inventory.getAvailableStock(),
-                product.getCreatedAt()
-        );
+        return toProductResponse(product);
     }
 
-    public PagedResult<ProductResponse> getProducts(ProductCategory category, ProductStatus status, String sort, int page, int size)  {
-        List<Product> products = productRepository.findAll();
+    public PagedResult<ProductResponse> getProducts(Long categoryId, ProductStatus status, Pageable pageable) {
+        Page<Product> productPage = productRepository.findByDynamicFilters(categoryId, status, pageable);
 
-        Map<Long, Inventory> inventories = loadAllInventoriesAsMap();
-
-        var stream = products.stream();
-
-        if (category != null) {
-            stream = stream.filter(p -> p.getCategory() == category);
-        }
-        if (status != null) {
-            stream = stream.filter(p -> p.getStatus() == status);
-        }
-
-        Comparator<Product> comparator = getComparatorForSort(sort);
-        if (comparator != null) {
-            stream = stream.sorted(comparator);
-        }
-
-        List<ProductResponse> responses = stream
-                .map(p -> {
-                    Inventory inv = inventories.getOrDefault(p.getId(), Inventory.empty());
-                    return ProductResponse.of(
-                            p.getId(),
-                            p.getName(),
-                            p.getDescription(),
-                            p.getPrice(),
-                            p.getCategory().name(),
-                            p.getBrand(),
-                            p.getImageUrl(),
-                            p.getStatus().name(),
-                            inv.getStock(),
-                            inv.getReservedStock(),
-                            inv.getAvailableStock(),
-                            p.getCreatedAt()
-                    );
-                })
+        List<Long> productIds = productPage.getContent().stream()
+                .map(Product::getId)
                 .toList();
+        Map<Long, Inventory> inventoryMap = getInventoriesAsMap(productIds);
 
-        return PagedResult.of(responses, page, size);
+        return PagedResult.from(productPage.map(product -> toProductResponse(product, inventoryMap)));
+    }
+
+    public PagedResult<ProductResponse> getPopularProducts(String sortBy, Pageable pageable) {
+        Page<Product> productPage = productRepository.findPopularProducts(sortBy, pageable);
+
+        List<Long> productIds = productPage.getContent().stream()
+                .map(Product::getId)
+                .toList();
+        Map<Long, Inventory> inventoryMap = getInventoriesAsMap(productIds);
+
+        return PagedResult.from(productPage.map(product -> toProductResponse(product, inventoryMap)));
     }
 
     public Inventory getInventory(Long productId) {
@@ -101,98 +69,76 @@ public class ProductService {
     }
 
     public List<Inventory> getLowStockProducts() {
-        return inventoryRepository.findLowStockProducts();
+        return inventoryRepository.findLowStockInventories();
     }
 
     public Map<Long, Inventory> getInventoriesAsMap(List<Long> productIds) {
-        return inventoryRepository.findAll().stream()
-                .filter(inv -> productIds.contains(inv.getProductId()))
-                .collect(Collectors.toMap(Inventory::getProductId, inv -> inv));
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        return inventoryRepository.findAllByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(inv -> inv.getProduct().getId(), inv -> inv));
     }
 
     public Map<Long, Product> getProductsAsMap(List<Long> productIds) {
-        return productRepository.findAll().stream()
-                .filter(p -> productIds.contains(p.getId()))
+        return productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
     }
 
-    private Map<Long, Inventory> loadAllInventoriesAsMap() {
-        return inventoryRepository.findAll().stream()
-                .collect(Collectors.toMap(Inventory::getProductId, inv -> inv));
-    }
-
+    @Transactional
     public void reserveStock(Long productId, int quantity) {
-        Inventory inventory = getInventory(productId);
+        Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
+
         inventory.reserve(quantity);
-        inventoryRepository.save(inventory);
     }
 
+    @Transactional
     public void confirmStockReservation(Long productId, int quantity) {
-        Inventory inventory = getInventory(productId);
+        Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
+
         inventory.confirmReservation(quantity);
-        inventoryRepository.save(inventory);
     }
 
+    @Transactional
     public void releaseStockReservation(Long productId, int quantity) {
-        Inventory inventory = getInventory(productId);
+        Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
+
         inventory.releaseReservation(quantity);
-        inventoryRepository.save(inventory);
     }
 
+    @Transactional
     public void incrementSalesCount(Long productId, int quantity) {
         Product product = findProductById(productId);
         product.incrementSalesCount(quantity);
-        productRepository.save(product);
     }
 
-    public PagedResult<ProductResponse> getPopularProducts(int page, int size, String sortBy) {
-        List<Product> products = productRepository.findAll();
-        Map<Long, Inventory> inventories = loadAllInventoriesAsMap();
-
-        Comparator<Product> comparator = switch (sortBy) {
-            case "views" -> Comparator.comparing(p -> p.getViewCount() == null ? 0 : p.getViewCount(), Comparator.reverseOrder());
-            case "sales" -> Comparator.comparing(p -> p.getSalesCount() == null ? 0 : p.getSalesCount(), Comparator.reverseOrder());
-            case "popular" -> Comparator.comparing(Product::getPopularityScore, Comparator.reverseOrder());
-            default -> Comparator.comparing(Product::getPopularityScore, Comparator.reverseOrder());
-        };
-
-        List<ProductResponse> responses = products.stream()
-                .sorted(comparator)
-                .map(p -> {
-                    Inventory inv = inventories.getOrDefault(p.getId(), Inventory.empty());
-                    return ProductResponse.of(
-                            p.getId(),
-                            p.getName(),
-                            p.getDescription(),
-                            p.getPrice(),
-                            p.getCategory().name(),
-                            p.getBrand(),
-                            p.getImageUrl(),
-                            p.getStatus().name(),
-                            inv.getStock(),
-                            inv.getReservedStock(),
-                            inv.getAvailableStock(),
-                            p.getCreatedAt()
-                    );
-                })
-                .toList();
-
-        return PagedResult.of(responses, page, size);
+    private ProductResponse toProductResponse(Product product) {
+        Inventory inventory = inventoryRepository.findByProductId(product.getId()).orElse(null);
+        return toProductResponse(product, inventory);
     }
 
-    private Comparator<Product> getComparatorForSort(String sort) {
-        if (sort == null || sort.isBlank()) return null;
-
-        return switch (sort) {
-            case "price,asc" -> Comparator.comparing(Product::getPrice);
-            case "price,desc" -> Comparator.comparing(Product::getPrice).reversed();
-            case "name,asc" -> Comparator.comparing(Product::getName);
-            case "created,desc" -> Comparator.comparing(Product::getCreatedAt).reversed();
-            case "popular" -> Comparator.comparing(Product::getPopularityScore).reversed();
-            case "views,desc" -> Comparator.comparing(p -> p.getViewCount() == null ? 0 : p.getViewCount(), Comparator.reverseOrder());
-            case "sales,desc" -> Comparator.comparing(p -> p.getSalesCount() == null ? 0 : p.getSalesCount(), Comparator.reverseOrder());
-            default -> null;
-        };
+    private ProductResponse toProductResponse(Product product, Map<Long, Inventory> inventoryMap) {
+        Inventory inventory = inventoryMap.get(product.getId());
+        return toProductResponse(product, inventory);
     }
 
+    private ProductResponse toProductResponse(Product product, Inventory inventory) {
+        return ProductResponse.of(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getCategory() != null ? product.getCategory().getName() : null,
+                product.getBrand() != null ? product.getBrand().getName() : null,
+                product.getImageUrl(),
+                product.getStatus().name(),
+                inventory != null ? inventory.getStock() : 0,
+                inventory != null ? inventory.getReservedStock() : 0,
+                inventory != null ? inventory.getAvailableStock() : 0,
+                product.getCreatedAt()
+        );
+    }
 }

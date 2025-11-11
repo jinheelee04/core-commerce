@@ -1,8 +1,7 @@
 package com.hhplus.ecommerce.domain.product.controller;
 
 import com.hhplus.ecommerce.domain.product.dto.ProductResponse;
-import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
-import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
+import com.hhplus.ecommerce.domain.product.entity.ProductStatus;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
 import com.hhplus.ecommerce.global.dto.CommonResponse;
 import com.hhplus.ecommerce.global.dto.ErrorResponse;
@@ -15,6 +14,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,19 +35,13 @@ public class ProductController {
     })
     @GetMapping
     public ResponseEntity<CommonResponse<List<ProductResponse>>> getProducts(
-            @Parameter(description = "카테고리 필터", example = "ELECTRONICS")
-            @RequestParam(required = false) ProductCategory category,
-            @Parameter(description = "상품 상태", example = "AVAILABLE")
+            @Parameter(description = "카테고리 ID", example = "1")
+            @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "상품 상태", example = "ACTIVE")
             @RequestParam(required = false) ProductStatus status,
-            @Parameter(description = "정렬 기준", example = "price,asc")
-            @RequestParam(required = false, defaultValue = "created,desc") String sort,
-            @Parameter(description = "페이지 번호", example = "0")
-            @RequestParam(required = false, defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "20")
-            @RequestParam(required = false, defaultValue = "20") int size
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ) {
-
-        PagedResult<ProductResponse> result = productService.getProducts(category, status, sort, page, size);
+        PagedResult<ProductResponse> result = productService.getProducts(categoryId, status, pageable);
         return ResponseEntity.ok(CommonResponse.success(result.content(), result.meta()));
     }
 
@@ -76,14 +71,11 @@ public class ProductController {
     })
     @GetMapping("/popular")
     public ResponseEntity<CommonResponse<List<ProductResponse>>> getPopularProducts(
-            @Parameter(description = "정렬 기준 (views: 조회수, sales: 판매량, popular: 종합)", example = "popular")
-            @RequestParam(required = false, defaultValue = "popular") String sortBy,
-            @Parameter(description = "페이지 번호", example = "0")
-            @RequestParam(required = false, defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "10")
-            @RequestParam(required = false, defaultValue = "10") int size
+            @Parameter(description = "정렬 기준 (views: 조회수, sales: 판매량)", example = "views")
+            @RequestParam(required = false, defaultValue = "views") String sortBy,
+            @PageableDefault(size = 10, sort = "viewCount") Pageable pageable
     ) {
-        PagedResult<ProductResponse> result = productService.getPopularProducts(page, size, sortBy);
+        PagedResult<ProductResponse> result = productService.getPopularProducts(sortBy, pageable);
         return ResponseEntity.ok(CommonResponse.success(result.content(), result.meta()));
     }
 }
