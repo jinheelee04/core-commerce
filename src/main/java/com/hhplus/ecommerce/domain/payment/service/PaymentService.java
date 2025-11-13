@@ -3,15 +3,14 @@ package com.hhplus.ecommerce.domain.payment.service;
 import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
 import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
-import com.hhplus.ecommerce.domain.payment.model.Payment;
-import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.repository.PaymentRepository;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import com.hhplus.ecommerce.global.exception.DomainExceptionMapper;
@@ -44,7 +43,7 @@ public class PaymentService {
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
 
-    public PaymentResponse processPayment(Long userId, Long orderId, PaymentMethod paymentMethod, String clientRequestId) {
+    public PaymentResponse processPayment(Long userId, Long orderId, Payment.PaymentMethod paymentMethod, String clientRequestId) {
         log.info("[Payment] 결제 요청 시작 - userId: {}, orderId: {}, method: {}, clientRequestId: {}",
                 userId, orderId, paymentMethod, clientRequestId);
 
@@ -80,7 +79,7 @@ public class PaymentService {
 
     public PaymentResponse getPaymentByOrderId(Long userId, Long orderId) {
         validateOrderOwnership(userId, orderId, "결제 조회");
-        Payment payment = paymentRepository.findByOrderId(orderId)
+        Payment payment = paymentRepository.findByOrderIdWithOrder(orderId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         return toPaymentResponse(payment);
@@ -124,19 +123,19 @@ public class PaymentService {
 
 
     private Payment checkExistingSuccessfulPayment(Long orderId) {
-        Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
+        Payment existingPayment = paymentRepository.findByOrderIdWithOrder(orderId).orElse(null);
         if (existingPayment != null && existingPayment.isSuccess()) {
             return existingPayment;
         }
         return null;
     }
 
-    private Payment createPendingPayment(Long orderId, Long amount, PaymentMethod paymentMethod, String clientRequestId) {
-        Long paymentId = paymentRepository.generateNextId();
-        return Payment.createPending(paymentId, orderId, amount, paymentMethod, clientRequestId);
+    private Payment createPendingPayment(Long orderId, Long amount, Payment.PaymentMethod paymentMethod, String clientRequestId) {
+        Order order = orderService.findOrderById(orderId);
+        return new Payment(order, amount, paymentMethod, clientRequestId);
     }
 
-    private void executePayment(Order order, Payment payment, PaymentMethod method) {
+    private void executePayment(Order order, Payment payment, Payment.PaymentMethod method) {
         log.info("[Payment] PG 결제 실행 시작 - orderId: {}, amount: {}, method: {}",
                 order.getId(), order.getFinalAmount(), method);
 
@@ -206,7 +205,7 @@ public class PaymentService {
         log.info("[Payment] 결제 예외 처리 완료 - paymentId: {}, status: FAILED", payment.getId());
     }
 
-    private Map<String, Object> callPaymentGateway(Long orderId, Long amount, PaymentMethod method) {
+    private Map<String, Object> callPaymentGateway(Long orderId, Long amount, Payment.PaymentMethod method) {
         Map<String, Object> request = Map.of(
                 "orderId", orderId,
                 "amount", amount,

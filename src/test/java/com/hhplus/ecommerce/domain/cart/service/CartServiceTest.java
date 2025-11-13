@@ -2,12 +2,10 @@ package com.hhplus.ecommerce.domain.cart.service;
 
 import com.hhplus.ecommerce.domain.cart.dto.CartItemAddResponse;
 import com.hhplus.ecommerce.domain.cart.dto.CartResponse;
+import com.hhplus.ecommerce.domain.cart.entity.Cart;
+import com.hhplus.ecommerce.domain.cart.entity.CartItem;
 import com.hhplus.ecommerce.domain.cart.exception.CartErrorCode;
-import com.hhplus.ecommerce.domain.cart.model.Cart;
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.cart.repository.CartItemRepository;
-import com.hhplus.ecommerce.domain.cart.repository.CartRepository;
-import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
 import com.hhplus.ecommerce.domain.product.model.Inventory;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;

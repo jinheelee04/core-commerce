@@ -2,7 +2,7 @@ package com.hhplus.ecommerce.domain.payment.controller;
 
 import com.hhplus.ecommerce.domain.payment.dto.PaymentRequest;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
-import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
 import com.hhplus.ecommerce.domain.payment.service.PaymentService;
 import com.hhplus.ecommerce.global.dto.CommonResponse;
 import com.hhplus.ecommerce.global.constants.HttpHeaders;
@@ -44,7 +44,7 @@ public class PaymentController {
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody PaymentRequest request
     ) {
-        PaymentMethod paymentMethod = PaymentMethod.valueOf(request.paymentMethod());
+        Payment.PaymentMethod paymentMethod = Payment.PaymentMethod.valueOf(request.paymentMethod());
         PaymentResponse response = paymentService.processPayment(userId, request.orderId(), paymentMethod, idempotencyKey);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(response));

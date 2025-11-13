@@ -1,4 +1,4 @@
-package com.hhplus.ecommerce.domain.order.model;
+package com.hhplus.ecommerce.domain.order.entity;
 
 public enum OrderStatus {
     PENDING,

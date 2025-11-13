@@ -1,6 +1,6 @@
 package com.hhplus.ecommerce.domain.cart.dto;
 
-import com.hhplus.ecommerce.domain.cart.model.Cart;
+import com.hhplus.ecommerce.domain.cart.entity.Cart;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;

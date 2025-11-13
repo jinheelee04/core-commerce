@@ -1,6 +1,7 @@
 package com.hhplus.ecommerce.domain.cart.entity;
 
 import com.hhplus.ecommerce.domain.cart.exception.CartErrorCode;
+import com.hhplus.ecommerce.domain.product.entity.Product;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -27,11 +28,13 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "cart_id", nullable = false)
-    private Long cartId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @Column(nullable = false)
     private Integer quantity = 1;
@@ -57,10 +60,10 @@ public class CartItem {
     }
 
     // 비즈니스 로직용 생성자
-    public CartItem(Long cartId, Long productId, Integer quantity) {
+    public CartItem(Cart cart, Product product, Integer quantity) {
         validateQuantity(quantity);
-        this.cartId = cartId;
-        this.productId = productId;
+        this.cart = cart;
+        this.product = product;
         this.quantity = quantity;
     }
 
@@ -73,7 +76,7 @@ public class CartItem {
 
     // 상품 확인
     public boolean isSameProduct(Long productId) {
-        return this.productId.equals(productId);
+        return this.product.getId().equals(productId);
     }
 
     // 수량 변경
@@ -87,5 +90,14 @@ public class CartItem {
         int newQuantity = this.quantity + amount;
         validateQuantity(newQuantity);
         this.quantity = newQuantity;
+    }
+
+    // 편의 메서드
+    public Long getCartId() {
+        return cart != null ? cart.getId() : null;
+    }
+
+    public Long getProductId() {
+        return product != null ? product.getId() : null;
     }
 }

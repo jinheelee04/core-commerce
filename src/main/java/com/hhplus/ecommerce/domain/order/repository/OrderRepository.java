@@ -1,64 +1,35 @@
 package com.hhplus.ecommerce.domain.order.repository;
 
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * 주문 Repository 인터페이스
- * 주문 데이터 접근을 추상화
- */
-public interface OrderRepository {
-    /**
-     * 주문 저장
-     */
-    Order save(Order order);
+public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    /**
-     * ID로 주문 조회
-     */
-    Optional<Order> findById(Long id);
-
-    /**
-     * 주문 번호로 주문 조회
-     */
     Optional<Order> findByOrderNumber(String orderNumber);
 
-    /**
-     * 사용자 ID로 주문 목록 조회
-     */
-    List<Order> findByUserId(Long userId);
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId")
+    List<Order> findByUserId(@Param("userId") Long userId);
 
-    /**
-     * 상태별 주문 조회
-     */
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId")
+    Page<Order> findByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT o FROM Order o " +
+           "JOIN FETCH o.user " +
+           "LEFT JOIN FETCH o.orderItems " +
+           "WHERE o.user.id = :userId")
+    List<Order> findByUserIdWithItems(@Param("userId") Long userId);
+
     List<Order> findByStatus(OrderStatus status);
 
-    /**
-     * 만료된 주문 조회
-     */
-    List<Order> findExpiredOrders(LocalDateTime now);
-
-    /**
-     * 모든 주문 조회
-     */
-    List<Order> findAll();
-
-    /**
-     * 주문 삭제
-     */
-    void deleteById(Long id);
-
-    /**
-     * 다음 ID 생성
-     */
-    Long generateNextId();
-
-    /**
-     * 주문 번호 생성
-     */
-    String generateOrderNumber();
+    @Query("SELECT o FROM Order o WHERE o.status = :status AND o.expiresAt < :now")
+    List<Order> findExpiredOrders(@Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 }

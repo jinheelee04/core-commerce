@@ -1,12 +1,14 @@
 package com.hhplus.ecommerce.domain.order.entity;
 
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
+import com.hhplus.ecommerce.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "orders")
@@ -18,11 +20,18 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems = new ArrayList<>();
 
     @Column(name = "user_address_id")
     private Long userAddressId;
+
+    @Column(name = "user_coupon_id")
+    private Long userCouponId;
 
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
@@ -101,12 +110,13 @@ public class Order {
     }
 
     // 비즈니스 로직용 생성자
-    public Order(Long userId, Long userAddressId, String orderNumber,
+    public Order(User user, Long userAddressId, Long userCouponId, String orderNumber,
                  Long itemsTotal, Long discountAmount, Long finalAmount,
                  String recipientName, String recipientPhone, String postalCode,
                  String address, String addressDetail, String deliveryMemo) {
-        this.userId = userId;
+        this.user = user;
         this.userAddressId = userAddressId;
+        this.userCouponId = userCouponId;
         this.orderNumber = orderNumber;
         this.status = OrderStatus.PENDING;
         this.itemsTotal = itemsTotal;
@@ -165,5 +175,32 @@ public class Order {
 
     public boolean isCancelled() {
         return status == OrderStatus.CANCELLED;
+    }
+
+    // 편의 메서드
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    public List<OrderItem> getItems() {
+        return orderItems;
+    }
+
+    public String getDeliveryAddress() {
+        return address;
+    }
+
+    public String getDeliveryMemo() {
+        return deliveryMemo;
+    }
+
+    public Integer getTotalQuantity() {
+        return orderItems.stream()
+                .mapToInt(OrderItem::getQuantity)
+                .sum();
+    }
+
+    public void setUserCouponId(Long userCouponId) {
+        this.userCouponId = userCouponId;
     }
 }

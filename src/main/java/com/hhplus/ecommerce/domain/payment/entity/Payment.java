@@ -1,7 +1,6 @@
 package com.hhplus.ecommerce.domain.payment.entity;
 
-import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
-import com.hhplus.ecommerce.domain.payment.model.PaymentStatus;
+import com.hhplus.ecommerce.domain.order.entity.Order;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,8 +18,9 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
-    private Long orderId;
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false, unique = true)
+    private Order order;
 
     @Column(nullable = false)
     private Long amount;
@@ -35,6 +35,9 @@ public class Payment {
 
     @Column(name = "transaction_id", length = 100)
     private String transactionId;
+
+    @Column(name = "client_request_id", unique = true, length = 100)
+    private String clientRequestId;
 
     @Column(name = "fail_reason", columnDefinition = "TEXT")
     private String failReason;
@@ -66,10 +69,11 @@ public class Payment {
     }
 
     // 비즈니스 로직용 생성자
-    public Payment(Long orderId, Long amount, PaymentMethod paymentMethod) {
-        this.orderId = orderId;
+    public Payment(Order order, Long amount, PaymentMethod paymentMethod, String clientRequestId) {
+        this.order = order;
         this.amount = amount;
         this.paymentMethod = paymentMethod;
+        this.clientRequestId = clientRequestId;
         this.status = PaymentStatus.PENDING;
     }
 
@@ -106,5 +110,26 @@ public class Payment {
 
     public boolean isPending() {
         return status == PaymentStatus.PENDING;
+    }
+
+    // 편의 메서드
+    public Long getOrderId() {
+        return order != null ? order.getId() : null;
+    }
+
+    public enum PaymentMethod {
+        CARD,           // 카드
+        VIRTUAL_ACCOUNT, // 가상계좌
+        PHONE           // 휴대폰
+    }
+
+    /**
+     * 결제 상태
+     */
+    public enum PaymentStatus {
+        PENDING,   // 결제 대기
+        SUCCESS,   // 결제 성공
+        FAILED,    // 결제 실패
+        CANCELLED  // 결제 취소
     }
 }

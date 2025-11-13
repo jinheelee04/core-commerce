@@ -1,5 +1,6 @@
 package com.hhplus.ecommerce.domain.payment.model;
 
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -19,8 +20,8 @@ class PaymentTest {
                 .id(1L)
                 .orderId(100L)
                 .amount(50000L)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.PENDING)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -31,7 +32,7 @@ class PaymentTest {
         payment.markAsSuccess(transactionId);
 
         // Then
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.SUCCESS);
         assertThat(payment.getTransactionId()).isEqualTo(transactionId);
         assertThat(payment.getPaidAt()).isNotNull();
         assertThat(payment.getUpdatedAt()).isNotNull();
@@ -47,8 +48,8 @@ class PaymentTest {
                 .id(1L)
                 .orderId(100L)
                 .amount(50000L)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.PENDING)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -59,7 +60,7 @@ class PaymentTest {
         payment.markAsFailed(failReason);
 
         // Then
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.FAILED);
         assertThat(payment.getFailReason()).isEqualTo(failReason);
         assertThat(payment.getFailedAt()).isNotNull();
         assertThat(payment.getUpdatedAt()).isNotNull();
@@ -75,8 +76,8 @@ class PaymentTest {
                 .id(1L)
                 .orderId(100L)
                 .amount(50000L)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.SUCCESS)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.SUCCESS)
                 .transactionId("TXN-12345")
                 .paidAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
@@ -87,7 +88,7 @@ class PaymentTest {
         payment.cancel();
 
         // Then
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELLED);
+        assertThat(payment.getStatus()).isEqualTo(Payment.PaymentStatus.CANCELLED);
         assertThat(payment.getUpdatedAt()).isNotNull();
     }
 
@@ -99,8 +100,8 @@ class PaymentTest {
                 .id(1L)
                 .orderId(100L)
                 .amount(50000L)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.PENDING)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -119,8 +120,8 @@ class PaymentTest {
                 .id(1L)
                 .orderId(100L)
                 .amount(50000L)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.FAILED)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.FAILED)
                 .failReason("카드 한도 초과")
                 .failedAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
@@ -138,10 +139,10 @@ class PaymentTest {
     void isSuccess() {
         // Given
         Payment successPayment = Payment.builder()
-                .status(PaymentStatus.SUCCESS)
+                .status(Payment.PaymentStatus.SUCCESS)
                 .build();
         Payment pendingPayment = Payment.builder()
-                .status(PaymentStatus.PENDING)
+                .status(Payment.PaymentStatus.PENDING)
                 .build();
 
         // When & Then
@@ -154,10 +155,10 @@ class PaymentTest {
     void isFailed() {
         // Given
         Payment failedPayment = Payment.builder()
-                .status(PaymentStatus.FAILED)
+                .status(Payment.PaymentStatus.FAILED)
                 .build();
         Payment successPayment = Payment.builder()
-                .status(PaymentStatus.SUCCESS)
+                .status(Payment.PaymentStatus.SUCCESS)
                 .build();
 
         // When & Then

@@ -1,6 +1,5 @@
 package com.hhplus.ecommerce.domain.order.entity;
 
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

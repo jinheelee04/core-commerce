@@ -10,7 +10,7 @@ import com.hhplus.ecommerce.domain.coupon.repository.CouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.UserCouponRepository;
 import com.hhplus.ecommerce.domain.order.entity.Order;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.repository.OrderJpaRepository;
+import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
 import com.hhplus.ecommerce.domain.user.entity.User;
 import com.hhplus.ecommerce.domain.user.repository.UserRepository;
 import com.hhplus.ecommerce.global.exception.BusinessException;
@@ -29,7 +29,7 @@ public class CouponService {
     private final CouponRepository couponRepository;
     private final UserCouponRepository userCouponRepository;
     private final UserRepository userRepository;
-    private final OrderJpaRepository orderRepository;
+    private final OrderRepository orderRepository;
 
     public List<CouponResponse> getAvailableCoupons() {
         List<Coupon> coupons = couponRepository.findIssuableCoupons(

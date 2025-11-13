@@ -1,20 +1,22 @@
 package com.hhplus.ecommerce.domain.order.service;
 
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
+import com.hhplus.ecommerce.domain.cart.entity.CartItem;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
 import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
 import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.dto.*;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderItem;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderItem;
 import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
 import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.product.entity.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
+import com.hhplus.ecommerce.domain.user.entity.User;
+import com.hhplus.ecommerce.domain.user.repository.UserRepository;
 import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final UserRepository userRepository;
     private final CartService cartService;
     private final ProductService productService;
     private final CouponService couponService;
@@ -71,7 +76,7 @@ public class OrderService {
         Order order = buildOrder(userId, orderItems, itemsTotal, discountAmount, userCouponId, deliveryAddress, deliveryMemo);
         Order savedOrder = orderRepository.save(order);
 
-        saveOrderItems(savedOrder.getId(), orderItems);
+        saveOrderItems(savedOrder, orderItems);
 
         if (userCouponId != null) {
             couponService.reserveCoupon(userCouponId, savedOrder.getId());
@@ -86,15 +91,16 @@ public class OrderService {
         Order order = requireOrderOwnedByUser(userId, orderId);
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
 
-        Order orderWithItems = enrichOrderWithItems(order, items);
+        order.getItems().clear();
+        order.getItems().addAll(items);
 
         Coupon coupon = null;
-        if (orderWithItems.getUserCouponId() != null) {
-            UserCoupon userCoupon = couponService.findUserCouponById(orderWithItems.getUserCouponId());
+        if (order.getUserCouponId() != null) {
+            UserCoupon userCoupon = couponService.findUserCouponById(order.getUserCouponId());
             coupon = couponService.findCouponById(userCoupon.getCouponId());
         }
 
-        return toOrderResponse(orderWithItems, coupon, orderWithItems.getDiscountAmount());
+        return toOrderResponse(order, coupon, order.getDiscountAmount());
     }
 
     public PagedResult<OrderSummaryResponse> getUserOrders(Long userId, int page, int size) {
@@ -275,10 +281,10 @@ public class OrderService {
 
             productService.reserveStock(product.getId(), cartItem.getQuantity());
 
-            Long itemId = orderItemRepository.generateNextId();
-            OrderItem orderItem = OrderItem.create(
-                    itemId,
-                    product.getId(),
+            // JPA will handle ID generation, pass null for order initially
+            OrderItem orderItem = new OrderItem(
+                    null,
+                    product,
                     product.getName(),
                     cartItem.getQuantity(),
                     product.getPrice()
@@ -297,22 +303,49 @@ public class OrderService {
 
     private Order buildOrder(Long userId, List<OrderItem> orderItems, long itemsTotal, long discountAmount,
                              Long userCouponId, String deliveryAddress, String deliveryMemo) {
-        Long orderId = orderRepository.generateNextId();
-        String orderNumber = orderRepository.generateOrderNumber();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.USER_NOT_FOUND));
 
-        return Order.create(orderId, userId, orderNumber, orderItems,
-                itemsTotal, discountAmount, userCouponId, deliveryAddress, deliveryMemo);
+        String orderNumber = generateOrderNumber();
+        long finalAmount = itemsTotal - discountAmount;
+
+        // Order will be saved by JPA with auto-generated ID
+        Order order = new Order(
+                user,
+                null, // userAddressId - not used in current implementation
+                userCouponId,
+                orderNumber,
+                itemsTotal,
+                discountAmount,
+                finalAmount,
+                user.getName(), // recipientName
+                user.getPhone(), // recipientPhone
+                "", // postalCode - extracted from deliveryAddress if needed
+                deliveryAddress != null ? deliveryAddress : "",
+                null, // addressDetail
+                deliveryMemo
+        );
+
+        return order;
     }
 
-    private void saveOrderItems(Long orderId, List<OrderItem> orderItems) {
+    private String generateOrderNumber() {
+        return "ORD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + String.format("%04d", (int)(Math.random() * 10000));
+    }
+
+    private void saveOrderItems(Order order, List<OrderItem> orderItems) {
         for (OrderItem item : orderItems) {
-            OrderItem itemWithOrderId = item.withOrderId(orderId);
-            orderItemRepository.save(itemWithOrderId);
+            // Create new OrderItem with order reference
+            OrderItem itemWithOrder = new OrderItem(
+                    order,
+                    item.getProduct(),
+                    item.getProductName(),
+                    item.getQuantity(),
+                    item.getUnitPrice()
+            );
+            orderItemRepository.save(itemWithOrder);
         }
-    }
-
-    private Order enrichOrderWithItems(Order order, List<OrderItem> items) {
-        return order.withItems(items);
     }
 
     private void releaseStockReservations(Long orderId) {

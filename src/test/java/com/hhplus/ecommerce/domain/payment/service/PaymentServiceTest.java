@@ -1,21 +1,20 @@
 package com.hhplus.ecommerce.domain.payment.service;
 
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
 import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
 import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
+import com.hhplus.ecommerce.domain.order.entity.Order;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
-import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
-import com.hhplus.ecommerce.domain.payment.model.PaymentStatus;
 import com.hhplus.ecommerce.domain.payment.repository.PaymentRepository;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import com.hhplus.ecommerce.global.exception.DomainExceptionMapper;
@@ -132,8 +131,8 @@ class PaymentServiceTest {
                 .id(paymentId)
                 .orderId(orderId)
                 .amount(AMOUNT)
-                .paymentMethod(PaymentMethod.CARD)
-                .status(PaymentStatus.SUCCESS)
+                .paymentMethod(Payment.PaymentMethod.CARD)
+                .status(Payment.PaymentStatus.SUCCESS)
                 .clientRequestId(CLIENT_REQUEST_ID)
                 .transactionId(transactionId)
                 .paidAt(LocalDateTime.now())
@@ -177,7 +176,7 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
@@ -185,7 +184,7 @@ class PaymentServiceTest {
         assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
         assertThat(response.orderId()).isEqualTo(ORDER_ID);
         assertThat(response.amount()).isEqualTo(AMOUNT);
-        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.SUCCESS.name());
         assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
         assertThat(response.failReason()).isNull();
 
@@ -214,12 +213,12 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.FAILED.name());
         assertThat(response.failReason()).isEqualTo(failReason);
         assertThat(response.transactionId()).isNull();
 
@@ -241,13 +240,13 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
         assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
-        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.SUCCESS.name());
         assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
 
         verify(paymentRepository, never()).save(any());
@@ -267,13 +266,13 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
         assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
-        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.SUCCESS.name());
 
         verify(paymentRepository, never()).save(any());
         verify(restClient, never()).post();
@@ -296,13 +295,13 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
         assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
-        assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.FAILED.name());
         assertThat(response.failReason()).contains("이미 동일한 transactionId");
 
         // 이벤트가 발행되지 않아야 함
@@ -321,7 +320,7 @@ class PaymentServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         ))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.PAYMENT_NOT_FOUND);
@@ -340,7 +339,7 @@ class PaymentServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         ))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.PAYMENT_NOT_ALLOWED);
@@ -358,7 +357,7 @@ class PaymentServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         ))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.INVALID_ORDER_STATUS);
@@ -380,7 +379,7 @@ class PaymentServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         ))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", PaymentErrorCode.PAYMENT_FAILED);
@@ -412,7 +411,7 @@ class PaymentServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
         assertThat(response.orderId()).isEqualTo(ORDER_ID);
-        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.SUCCESS.name());
     }
 
     @Test
@@ -521,12 +520,12 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.SUCCESS.name());
         assertThat(response.couponInfo()).isNotNull();
         assertThat(response.couponInfo().couponId()).isEqualTo(couponId);
         assertThat(response.couponInfo().couponName()).isEqualTo(couponName);
@@ -569,12 +568,12 @@ class PaymentServiceTest {
 
         // When
         PaymentResponse response = paymentService.processPayment(
-                USER_ID, ORDER_ID, PaymentMethod.CARD, CLIENT_REQUEST_ID
+                USER_ID, ORDER_ID, Payment.PaymentMethod.CARD, CLIENT_REQUEST_ID
         );
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.status()).isEqualTo(PaymentStatus.FAILED.name());
+        assertThat(response.status()).isEqualTo(Payment.PaymentStatus.FAILED.name());
         assertThat(response.failReason()).isEqualTo(failReason);
 
         // 이벤트 발행 검증 - 주문 취소 시 쿠폰도 자동 복구됨

@@ -1,5 +1,6 @@
 package com.hhplus.ecommerce.domain.order.entity;
 
+import com.hhplus.ecommerce.domain.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,11 +18,16 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
-    private Long orderId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+
+    @Column(name = "product_name", nullable = false, length = 255)
+    private String productName;
 
     @Column(nullable = false)
     private Integer quantity;
@@ -50,9 +56,10 @@ public class OrderItem {
     }
 
     // 비즈니스 로직용 생성자
-    public OrderItem(Long orderId, Long productId, Integer quantity, Long unitPrice) {
-        this.orderId = orderId;
-        this.productId = productId;
+    public OrderItem(Order order, Product product, String productName, Integer quantity, Long unitPrice) {
+        this.order = order;
+        this.product = product;
+        this.productName = productName;
         this.quantity = quantity;
         this.unitPrice = unitPrice;
         this.subtotal = unitPrice * quantity;
@@ -61,5 +68,14 @@ public class OrderItem {
     // 소계 계산
     public Long calculateSubtotal() {
         return unitPrice * quantity;
+    }
+
+    // 편의 메서드
+    public Long getOrderId() {
+        return order != null ? order.getId() : null;
+    }
+
+    public Long getProductId() {
+        return product != null ? product.getId() : null;
     }
 }

@@ -1,20 +1,18 @@
 package com.hhplus.ecommerce.domain.order.service;
 
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
+import com.hhplus.ecommerce.domain.cart.entity.CartItem;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
 import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
 import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.dto.CancelOrderResponse;
 import com.hhplus.ecommerce.domain.order.dto.OrderResponse;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderItem;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderItem;
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
-import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
-import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
 import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;

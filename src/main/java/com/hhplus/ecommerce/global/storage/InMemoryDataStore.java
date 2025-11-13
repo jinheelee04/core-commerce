@@ -1,14 +1,7 @@
 package com.hhplus.ecommerce.global.storage;
 
-import com.hhplus.ecommerce.domain.cart.model.Cart;
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
-import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
 import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderItem;
-import com.hhplus.ecommerce.domain.payment.model.Payment;
 import com.hhplus.ecommerce.domain.product.model.Inventory;
 import com.hhplus.ecommerce.domain.product.model.product.Product;
 import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
@@ -16,39 +9,24 @@ import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * In-Memory 데이터 저장소
- * JPA 도입 전까지 사용하는 임시 데이터 저장소
+ * Product/Inventory 데이터만 관리 (Cart/Order/Payment는 JPA로 관리)
  */
-public class
-InMemoryDataStore {
+public class InMemoryDataStore {
 
     // ID 시퀀스
     public static final AtomicLong productIdSequence = new AtomicLong(5);
     public static final AtomicLong inventoryIdSequence = new AtomicLong(5);
-    public static final AtomicLong cartIdSequence = new AtomicLong(1);
-    public static final AtomicLong cartItemIdSequence = new AtomicLong(1);
-    public static final AtomicLong orderIdSequence = new AtomicLong(1);
-    public static final AtomicLong orderItemIdSequence = new AtomicLong(1);
-    public static final AtomicLong paymentIdSequence = new AtomicLong(1);
-    public static final AtomicLong couponIdSequence = new AtomicLong(3);
-    public static final AtomicLong userCouponIdSequence = new AtomicLong(1);
 
     // 데이터 저장소
     public static final Map<Long, Product> PRODUCTS = new ConcurrentHashMap<>();
     public static final Map<Long, Inventory> INVENTORY = new ConcurrentHashMap<>();
-    public static final Map<Long, Cart> CARTS = new ConcurrentHashMap<>();
-    public static final Map<Long, List<CartItem>> CART_ITEMS = new ConcurrentHashMap<>();
-    public static final Map<Long, Order> ORDERS = new ConcurrentHashMap<>();
-    public static final Map<Long, List<OrderItem>> ORDER_ITEMS = new ConcurrentHashMap<>();
-    public static final Map<Long, Payment> PAYMENTS = new ConcurrentHashMap<>();
     public static final Map<Long, Coupon> COUPONS = new ConcurrentHashMap<>();
-    public static final Map<Long, UserCoupon> USER_COUPONS = new ConcurrentHashMap<>();
 
     // 초기 데이터 로드
     static {
@@ -174,26 +152,11 @@ InMemoryDataStore {
     }
 
     /**
-     * 주문 번호 생성
-     */
-    public static String generateOrderNumber() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-        String dateStr = LocalDateTime.now().format(formatter);
-        return String.format("ORD-%s-%05d", dateStr, orderIdSequence.get());
-    }
-
-    /**
      * 테스트용 데이터 초기화 메서드
      */
     public static void clear() {
         PRODUCTS.clear();
         INVENTORY.clear();
-        CARTS.clear();
-        CART_ITEMS.clear();
-        ORDERS.clear();
-        ORDER_ITEMS.clear();
-        PAYMENTS.clear();
         COUPONS.clear();
-        USER_COUPONS.clear();
     }
 }

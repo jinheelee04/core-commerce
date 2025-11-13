@@ -1,5 +1,6 @@
 package com.hhplus.ecommerce.domain.order.model;
 
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
