@@ -2,10 +2,10 @@ package com.hhplus.ecommerce.global.storage;
 
 import com.hhplus.ecommerce.domain.cart.model.Cart;
 import com.hhplus.ecommerce.domain.cart.model.CartItem;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.order.model.Order;
 import com.hhplus.ecommerce.domain.order.model.OrderItem;
 import com.hhplus.ecommerce.domain.payment.model.Payment;
@@ -146,41 +146,31 @@ InMemoryDataStore {
                 .updatedAt(now)
                 .build());
 
-        COUPONS.put(1L, Coupon.builder()
-                .id(1L)
-                .code("WELCOME10")
-                .name("신규 회원 10% 할인")
-                .description("신규 회원을 위한 10% 할인 쿠폰")
-                .discountType(DiscountType.PERCENTAGE)
-                .discountValue(10)
-                .minOrderAmount(10000L)
-                .maxDiscountAmount(5000L)
-                .totalQuantity(100)
-                .remainingQuantity(100)
-                .startsAt(now)
-                .endsAt(now.plusDays(30))
-                .status(CouponStatus.ACTIVE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build());
+        COUPONS.put(1L, new Coupon(
+                "WELCOME10",
+                "신규 회원 10% 할인",
+                "신규 회원을 위한 10% 할인 쿠폰",
+                DiscountType.PERCENTAGE,
+                10,
+                10000L,
+                5000L,
+                100,
+                now,
+                now.plusDays(30)
+        ));
 
-        COUPONS.put(2L, Coupon.builder()
-                .id(2L)
-                .code("FIXED5000")
-                .name("5000원 할인 쿠폰")
-                .description("5000원 정액 할인")
-                .discountType(DiscountType.FIXED_AMOUNT)
-                .discountValue(5000)
-                .minOrderAmount(50000L)
-                .maxDiscountAmount(5000L)
-                .totalQuantity(50)
-                .remainingQuantity(50)
-                .startsAt(now)
-                .endsAt(now.plusDays(30))
-                .status(CouponStatus.ACTIVE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build());
+        COUPONS.put(2L, new Coupon(
+                "FIXED5000",
+                "5000원 할인 쿠폰",
+                "5000원 정액 할인",
+                DiscountType.FIXED_AMOUNT,
+                5000,
+                50000L,
+                5000L,
+                50,
+                now,
+                now.plusDays(30)
+        ));
     }
 
     /**

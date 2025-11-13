@@ -1,6 +1,8 @@
 package com.hhplus.ecommerce.domain.coupon.entity;
 
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.user.entity.User;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -27,14 +29,17 @@ public class UserCoupon {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "coupon_id", nullable = false)
-    private Long couponId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "coupon_id")
+    private Coupon coupon;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(name = "order_id")
-    private Long orderId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private Order order;
 
     @Column(name = "is_used", nullable = false)
     private Boolean isUsed = false;
@@ -66,9 +71,9 @@ public class UserCoupon {
     }
 
     // 비즈니스 로직용 생성자
-    public UserCoupon(Long couponId, Long userId, LocalDateTime expiresAt) {
-        this.couponId = couponId;
-        this.userId = userId;
+    public UserCoupon(Coupon coupon, User user, LocalDateTime expiresAt) {
+        this.coupon = coupon;
+        this.user = user;
         this.isUsed = false;
         this.expiresAt = expiresAt;
     }
@@ -84,7 +89,7 @@ public class UserCoupon {
     }
 
     // 쿠폰 사용
-    public void use(Long orderId) {
+    public void use(Order order) {
         if (this.isUsed) {
             throw new BusinessException(CouponErrorCode.COUPON_ALREADY_USED);
         }
@@ -92,7 +97,7 @@ public class UserCoupon {
             throw new BusinessException(CouponErrorCode.COUPON_EXPIRED);
         }
         this.isUsed = true;
-        this.orderId = orderId;
+        this.order = order;
         this.usedAt = LocalDateTime.now();
     }
 
@@ -102,7 +107,20 @@ public class UserCoupon {
             throw new BusinessException(CouponErrorCode.COUPON_NOT_USED);
         }
         this.isUsed = false;
-        this.orderId = null;
+        this.order = null;
         this.usedAt = null;
+    }
+
+    // 편의 메서드 - 연관관계 ID 조회
+    public Long getCouponId() {
+        return coupon != null ? coupon.getId() : null;
+    }
+
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    public Long getOrderId() {
+        return order != null ? order.getId() : null;
     }
 }

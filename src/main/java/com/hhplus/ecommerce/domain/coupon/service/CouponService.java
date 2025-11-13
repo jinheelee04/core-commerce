@@ -2,32 +2,40 @@ package com.hhplus.ecommerce.domain.coupon.service;
 
 import com.hhplus.ecommerce.domain.coupon.dto.CouponResponse;
 import com.hhplus.ecommerce.domain.coupon.dto.UserCouponResponse;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
 import com.hhplus.ecommerce.domain.coupon.repository.CouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.UserCouponRepository;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
+import com.hhplus.ecommerce.domain.order.repository.OrderJpaRepository;
+import com.hhplus.ecommerce.domain.user.entity.User;
+import com.hhplus.ecommerce.domain.user.repository.UserRepository;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CouponService {
 
     private final CouponRepository couponRepository;
     private final UserCouponRepository userCouponRepository;
-
-    private final Map<Long, ReentrantLock> couponLocks = new ConcurrentHashMap<>();
-    private final Map<Long, Integer> issuedCount = new ConcurrentHashMap<>();
+    private final UserRepository userRepository;
+    private final OrderJpaRepository orderRepository;
 
     public List<CouponResponse> getAvailableCoupons() {
-        List<Coupon> coupons = couponRepository.findIssuableCoupons();
+        List<Coupon> coupons = couponRepository.findIssuableCoupons(
+                CouponStatus.ACTIVE,
+                LocalDateTime.now()
+        );
         return coupons.stream()
                 .map(this::toCouponResponse)
                 .toList();
@@ -47,83 +55,69 @@ public class CouponService {
                 .toList();
     }
 
+    @Transactional
     public UserCouponResponse issueCoupon(Long userId, Long couponId) {
-        ReentrantLock lock = couponLocks.computeIfAbsent(couponId, id -> new ReentrantLock(true));
+        Coupon coupon = couponRepository.findByIdWithLock(couponId)
+                .orElseThrow(() -> new BusinessException(CouponErrorCode.COUPON_NOT_FOUND));
 
-        lock.lock();
-        try {
-            Coupon coupon = findCouponById(couponId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.USER_NOT_FOUND));
 
-            int currentIssued = issuedCount.getOrDefault(couponId, 0);
-            if (currentIssued >= coupon.getTotalQuantity()) {
-                throw new BusinessException(CouponErrorCode.COUPON_OUT_OF_STOCK);
-            }
-
-            if (userCouponRepository.findByCouponIdAndUserId(couponId, userId).isPresent()) {
-                throw new BusinessException(CouponErrorCode.COUPON_ALREADY_ISSUED);
-            }
-
-            issuedCount.put(couponId, currentIssued + 1);
-
-            coupon.issue();
-            couponRepository.save(coupon);
-
-            Long userCouponId = userCouponRepository.generateNextId();
-            UserCoupon userCoupon = UserCoupon.issue(userCouponId, couponId, userId, coupon.getEndsAt());
-            UserCoupon savedCoupon = userCouponRepository.save(userCoupon);
-
-            return toUserCouponResponse(savedCoupon);
-        } finally {
-            lock.unlock();
+        if (userCouponRepository.existsByCouponIdAndUserId(couponId, userId)) {
+            throw new BusinessException(CouponErrorCode.COUPON_ALREADY_ISSUED);
         }
+
+        coupon.issue();
+
+        UserCoupon userCoupon = new UserCoupon(coupon, user, coupon.getEndsAt());
+        UserCoupon savedCoupon = userCouponRepository.save(userCoupon);
+
+        return toUserCouponResponse(savedCoupon);
     }
 
-    public void reserveCoupon(Long userCouponId, Long orderId) {
-        UserCoupon userCoupon = findUserCouponById(userCouponId);
-        userCoupon.reserve(orderId);
-        userCouponRepository.save(userCoupon);
-    }
-
-    public void confirmCouponReservation(Long userCouponId) {
-        UserCoupon userCoupon = findUserCouponById(userCouponId);
-        userCoupon.confirmReservation();
-        userCouponRepository.save(userCoupon);
-    }
-
-    public void releaseCouponReservation(Long userCouponId) {
-        UserCoupon userCoupon = findUserCouponById(userCouponId);
-        userCoupon.releaseReservation();
-        userCouponRepository.save(userCoupon);
-    }
-
-    @Deprecated
+    @Transactional
     public void useCoupon(Long userCouponId, Long orderId) {
-        confirmCouponReservation(userCouponId);
+        UserCoupon userCoupon = findUserCouponById(userCouponId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+
+        userCoupon.use(order);
     }
 
+    @Transactional
     public void cancelCouponUse(Long userCouponId) {
         UserCoupon userCoupon = findUserCouponById(userCouponId);
-        Long couponId = userCoupon.getCouponId();
 
-        ReentrantLock lock = couponLocks.computeIfAbsent(couponId, id -> new ReentrantLock(true));
+        Coupon coupon = userCoupon.getCoupon();
 
-        lock.lock();
-        try {
-            userCoupon.cancelUse();
-            userCouponRepository.save(userCoupon);
+        Coupon lockedCoupon = couponRepository.findByIdWithLock(coupon.getId())
+                .orElseThrow(() -> new BusinessException(CouponErrorCode.COUPON_NOT_FOUND));
 
-            int currentIssued = issuedCount.getOrDefault(couponId, 0);
-            if (currentIssued > 0) {
-                issuedCount.put(couponId, currentIssued - 1);
-            }
+        userCoupon.cancel();
+        lockedCoupon.restore();
+    }
 
-            Coupon coupon = findCouponById(couponId);
-            coupon.cancelIssue();
-            couponRepository.save(coupon);
+    @Transactional
+    public void reserveCoupon(Long userCouponId, Long orderId) {
+        UserCoupon userCoupon = findUserCouponById(userCouponId);
 
-        } finally {
-            lock.unlock();
-        }
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+
+        userCoupon.use(order);
+    }
+
+    @Transactional
+    public void confirmCouponReservation(Long userCouponId) {
+        // 이미 useCoupon/reserveCoupon에서 사용 처리가 완료되어 있으므로 별도 작업 불필요
+        // 필요시 추가 로직 구현
+    }
+
+    @Transactional
+    public void releaseCouponReservation(Long userCouponId) {
+        // 쿠폰 사용 취소와 동일
+        cancelCouponUse(userCouponId);
     }
 
     public CouponResponse getCoupon(Long couponId) {
@@ -166,11 +160,11 @@ public class CouponService {
     }
 
     private UserCouponResponse toUserCouponResponse(UserCoupon userCoupon) {
-        Coupon coupon = findCouponById(userCoupon.getCouponId());
+        Coupon coupon = userCoupon.getCoupon();
         return new UserCouponResponse(
                 userCoupon.getId(),
-                userCoupon.getCouponId(),
-                userCoupon.getUserId(),
+                coupon.getId(),
+                userCoupon.getUser().getId(),
                 coupon.getCode(),
                 coupon.getName(),
                 coupon.getDiscountType().name(),

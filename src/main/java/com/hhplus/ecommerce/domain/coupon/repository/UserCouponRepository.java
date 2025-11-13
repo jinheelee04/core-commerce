@@ -1,57 +1,42 @@
 package com.hhplus.ecommerce.domain.coupon.repository;
 
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * 사용자 쿠폰 Repository 인터페이스
- * 사용자 쿠폰 데이터 접근을 추상화
- */
-public interface UserCouponRepository {
-    /**
-     * 사용자 쿠폰 저장
-     */
-    UserCoupon save(UserCoupon userCoupon);
+public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
 
-    /**
-     * ID로 사용자 쿠폰 조회
-     */
-    Optional<UserCoupon> findById(Long id);
+    @Query("SELECT uc FROM UserCoupon uc WHERE uc.coupon.id = :couponId AND uc.user.id = :userId")
+    Optional<UserCoupon> findByCouponIdAndUserId(@Param("couponId") Long couponId, @Param("userId") Long userId);
+    
+    @Query("SELECT uc FROM UserCoupon uc " +
+           "JOIN FETCH uc.coupon " +
+           "JOIN FETCH uc.user " +
+           "WHERE uc.user.id = :userId")
+    List<UserCoupon> findByUserId(@Param("userId") Long userId);
 
-    /**
-     * 쿠폰 ID와 사용자 ID로 조회
-     */
-    Optional<UserCoupon> findByCouponIdAndUserId(Long couponId, Long userId);
 
-    /**
-     * 사용자 ID로 쿠폰 목록 조회
-     */
-    List<UserCoupon> findByUserId(Long userId);
+    @Query("SELECT uc FROM UserCoupon uc " +
+           "JOIN FETCH uc.coupon " +
+           "JOIN FETCH uc.user " +
+           "WHERE uc.user.id = :userId AND uc.isUsed = :isUsed")
+    List<UserCoupon> findByUserIdAndIsUsed(@Param("userId") Long userId, @Param("isUsed") Boolean isUsed);
 
-    /**
-     * 사용자 ID와 사용 여부로 쿠폰 조회
-     */
-    List<UserCoupon> findByUserIdAndIsUsed(Long userId, Boolean isUsed);
+    @Query("SELECT uc FROM UserCoupon uc WHERE uc.order.id = :orderId")
+    List<UserCoupon> findByOrderId(@Param("orderId") Long orderId);
 
-    /**
-     * 주문 ID로 사용된 쿠폰 조회
-     */
-    Optional<UserCoupon> findByOrderId(Long orderId);
+    @Query("SELECT CASE WHEN COUNT(uc) > 0 THEN true ELSE false END FROM UserCoupon uc WHERE uc.coupon.id = :couponId AND uc.user.id = :userId")
+    boolean existsByCouponIdAndUserId(@Param("couponId") Long couponId, @Param("userId") Long userId);
 
-    /**
-     * 모든 사용자 쿠폰 조회
-     */
-    List<UserCoupon> findAll();
-
-    /**
-     * 사용자 쿠폰 삭제
-     */
-    void deleteById(Long id);
-
-    /**
-     * 다음 ID 생성
-     */
-    Long generateNextId();
+    @Query("SELECT uc FROM UserCoupon uc WHERE uc.user.id = :userId " +
+           "AND uc.isUsed = false AND uc.expiresAt > :now")
+    List<UserCoupon> findAvailableCouponsByUserId(
+            @Param("userId") Long userId,
+            @Param("now") LocalDateTime now
+    );
 }

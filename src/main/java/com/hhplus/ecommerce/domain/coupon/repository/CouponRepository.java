@@ -1,53 +1,38 @@
 package com.hhplus.ecommerce.domain.coupon.repository;
 
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * 쿠폰 Repository 인터페이스
- * 쿠폰 데이터 접근을 추상화
- */
-public interface CouponRepository {
-    /**
-     * 쿠폰 저장
-     */
-    Coupon save(Coupon coupon);
+public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
-    /**
-     * ID로 쿠폰 조회
-     */
-    Optional<Coupon> findById(Long id);
-
-    /**
-     * 쿠폰 코드로 조회
-     */
     Optional<Coupon> findByCode(String code);
 
-    /**
-     * 상태별 쿠폰 조회
-     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Coupon c WHERE c.id = :id")
+    Optional<Coupon> findByIdWithLock(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Coupon c WHERE c.code = :code")
+    Optional<Coupon> findByCodeWithLock(@Param("code") String code);
+
     List<Coupon> findByStatus(CouponStatus status);
 
-    /**
-     * 발급 가능한 쿠폰 조회
-     */
-    List<Coupon> findIssuableCoupons();
+    @Query("SELECT c FROM Coupon c WHERE c.status = :status " +
+           "AND c.remainingQuantity > 0 " +
+           "AND c.startsAt <= :now AND c.endsAt > :now")
+    List<Coupon> findIssuableCoupons(
+            @Param("status") CouponStatus status,
+            @Param("now") LocalDateTime now
+    );
 
-    /**
-     * 모든 쿠폰 조회
-     */
-    List<Coupon> findAll();
-
-    /**
-     * 쿠폰 삭제
-     */
-    void deleteById(Long id);
-
-    /**
-     * 다음 ID 생성
-     */
-    Long generateNextId();
+    boolean existsByCode(String code);
 }

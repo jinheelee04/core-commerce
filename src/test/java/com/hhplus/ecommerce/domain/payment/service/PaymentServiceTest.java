@@ -1,8 +1,8 @@
 package com.hhplus.ecommerce.domain.payment.service;
 
 import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
+import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
 import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;

@@ -2,8 +2,8 @@ package com.hhplus.ecommerce.domain.order.service;
 
 import com.hhplus.ecommerce.domain.cart.model.CartItem;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.dto.*;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
@@ -65,7 +65,7 @@ public class OrderService {
         if (userCouponId != null) {
             UserCoupon userCoupon = validateAndGetUserCoupon(userId, userCouponId);
             coupon = couponService.findCouponById(userCoupon.getCouponId());
-            discountAmount = coupon.calculateDiscount(itemsTotal);
+            discountAmount = coupon.calculateDiscountAmount(itemsTotal);
         }
 
         Order order = buildOrder(userId, orderItems, itemsTotal, discountAmount, userCouponId, deliveryAddress, deliveryMemo);

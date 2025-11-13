@@ -1,15 +1,14 @@
 package com.hhplus.ecommerce.domain.coupon.entity;
 
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
+import java.util.List;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "coupons")
@@ -58,6 +57,9 @@ public class Coupon {
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private CouponStatus status = CouponStatus.ACTIVE;
+
+    @OneToMany(mappedBy = "coupon", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserCoupon> userCoupons = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -1,5 +1,7 @@
 package com.hhplus.ecommerce.domain.coupon.model;
 
+import com.hhplus.ecommerce.domain.coupon.entity.CouponStatus;
+import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;

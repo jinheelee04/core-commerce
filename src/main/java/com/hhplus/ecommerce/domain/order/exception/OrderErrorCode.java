@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum OrderErrorCode implements ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다"),
     ORDER_ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "ORDER_ALREADY_CANCELLED", "이미 취소된 주문입니다"),
     ORDER_ALREADY_PAID(HttpStatus.BAD_REQUEST, "ORDER_ALREADY_PAID", "이미 결제된 주문은 취소할 수 없습니다"),
     ORDER_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "ORDER_ALREADY_CONFIRMED", "이미 확정된 주문은 취소할 수 없습니다"),
