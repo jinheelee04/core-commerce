@@ -1,19 +1,18 @@
 package com.hhplus.ecommerce.domain.product.entity;
 
 import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "inventory")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Inventory {
+public class Inventory extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,32 +30,6 @@ public class Inventory {
 
     @Column(name = "low_stock_threshold", nullable = false)
     private Integer lowStockThreshold = 10;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.stock == null) {
-            this.stock = 0;
-        }
-        if (this.reservedStock == null) {
-            this.reservedStock = 0;
-        }
-        if (this.lowStockThreshold == null) {
-            this.lowStockThreshold = 10;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 
     // ========== 생성자 ==========
 

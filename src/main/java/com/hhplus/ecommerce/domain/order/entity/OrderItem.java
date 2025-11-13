@@ -1,18 +1,17 @@
 package com.hhplus.ecommerce.domain.order.entity;
 
 import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "order_items")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OrderItem {
+public class OrderItem extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,23 +37,6 @@ public class OrderItem {
     @Column(nullable = false)
     private Long subtotal;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
     public OrderItem(Order order, Product product, String productName, Integer quantity, Long unitPrice) {
         this.order = order;
@@ -63,19 +45,5 @@ public class OrderItem {
         this.quantity = quantity;
         this.unitPrice = unitPrice;
         this.subtotal = unitPrice * quantity;
-    }
-
-    // 소계 계산
-    public Long calculateSubtotal() {
-        return unitPrice * quantity;
-    }
-
-    // 편의 메서드
-    public Long getOrderId() {
-        return order != null ? order.getId() : null;
-    }
-
-    public Long getProductId() {
-        return product != null ? product.getId() : null;
     }
 }

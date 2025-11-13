@@ -1,11 +1,10 @@
 package com.hhplus.ecommerce.domain.user.entity;
 
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -19,14 +18,15 @@ import java.time.LocalDateTime;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserAddress {
+public class UserAddress extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(name = "address_name", length = 50)
     private String addressName;
@@ -49,31 +49,11 @@ public class UserAddress {
     @Column(name = "is_default", nullable = false)
     private Boolean isDefault = false;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.isDefault == null) {
-            this.isDefault = false;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
-    public UserAddress(Long userId, String addressName, String recipientName,
+    public UserAddress(User user, String addressName, String recipientName,
                        String recipientPhone, String postalCode, String address,
                        String addressDetail, Boolean isDefault) {
-        this.userId = userId;
+        this.user = user;
         this.addressName = addressName;
         this.recipientName = recipientName;
         this.recipientPhone = recipientPhone;

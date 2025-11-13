@@ -2,13 +2,12 @@ package com.hhplus.ecommerce.domain.cart.entity;
 
 import com.hhplus.ecommerce.domain.cart.exception.CartErrorCode;
 import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -22,7 +21,7 @@ import java.time.LocalDateTime;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class CartItem {
+public class CartItem extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,26 +37,6 @@ public class CartItem {
 
     @Column(nullable = false)
     private Integer quantity = 1;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.quantity == null) {
-            this.quantity = 1;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 
     // 비즈니스 로직용 생성자
     public CartItem(Cart cart, Product product, Integer quantity) {
@@ -92,12 +71,8 @@ public class CartItem {
         this.quantity = newQuantity;
     }
 
-    // 편의 메서드
-    public Long getCartId() {
-        return cart != null ? cart.getId() : null;
-    }
-
-    public Long getProductId() {
-        return product != null ? product.getId() : null;
+    // 소계 계산
+    public Long getSubtotal() {
+        return product.getPrice() * quantity;
     }
 }

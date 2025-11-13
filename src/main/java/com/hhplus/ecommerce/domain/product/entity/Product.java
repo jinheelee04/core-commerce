@@ -2,18 +2,17 @@ package com.hhplus.ecommerce.domain.product.entity;
 
 import com.hhplus.ecommerce.domain.brand.entity.Brand;
 import com.hhplus.ecommerce.domain.category.entity.Category;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "products")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Product {
+public class Product extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,38 +42,12 @@ public class Product {
     @Enumerated(EnumType.STRING)
     private ProductStatus status = ProductStatus.ACTIVE;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     // 통계 필드 (집계용)
     @Column(name = "view_count")
     private Integer viewCount = 0;
 
     @Column(name = "sales_count")
     private Integer salesCount = 0;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.status == null) {
-            this.status = ProductStatus.ACTIVE;
-        }
-        if (this.viewCount == null) {
-            this.viewCount = 0;
-        }
-        if (this.salesCount == null) {
-            this.salesCount = 0;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 
     // ========== 생성자 ==========
 

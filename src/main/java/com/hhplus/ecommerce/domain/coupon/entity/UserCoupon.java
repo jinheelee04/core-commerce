@@ -110,17 +110,4 @@ public class UserCoupon {
         this.order = null;
         this.usedAt = null;
     }
-
-    // 편의 메서드 - 연관관계 ID 조회
-    public Long getCouponId() {
-        return coupon != null ? coupon.getId() : null;
-    }
-
-    public Long getUserId() {
-        return user != null ? user.getId() : null;
-    }
-
-    public Long getOrderId() {
-        return order != null ? order.getId() : null;
-    }
 }

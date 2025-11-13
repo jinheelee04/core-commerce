@@ -1,12 +1,12 @@
 package com.hhplus.ecommerce.domain.cart.entity;
 
 import com.hhplus.ecommerce.domain.user.entity.User;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +14,7 @@ import java.util.List;
 @Table(name = "carts")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Cart {
+public class Cart extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,23 +27,6 @@ public class Cart {
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartItem> items = new ArrayList<>();
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
     public Cart(User user) {
         this.user = user;
@@ -52,15 +35,5 @@ public class Cart {
     // 사용자 확인
     public boolean belongsTo(Long userId) {
         return this.user.getId().equals(userId);
-    }
-
-    // 최종 수정 시간 갱신
-    public void touch() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    // 편의 메서드
-    public Long getUserId() {
-        return user != null ? user.getId() : null;
     }
 }

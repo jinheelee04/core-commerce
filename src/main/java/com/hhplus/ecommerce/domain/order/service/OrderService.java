@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -42,21 +43,26 @@ public class OrderService {
     private final ProductService productService;
     private final CouponService couponService;
 
+    @Transactional(readOnly = true)
     public Order findOrderById(Long orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
+    @Transactional(readOnly = true)
     public Order requireOrderOwnedByUser(Long userId, Long orderId) {
-        Order order = findOrderById(orderId);
+        // N+1 방지: User를 함께 조회
+        Order order = orderRepository.findByIdWithUser(orderId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
-        if (!order.getUserId().equals(userId)) {
+        if (!order.getUser().getId().equals(userId)) {
             throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
         }
 
         return order;
     }
 
+    @Transactional
     public OrderResponse createOrder(Long userId, List<Long> cartItemIds, Long userCouponId,
                                      String deliveryAddress, String deliveryMemo) {
         List<CartItem> cartItems = getValidCartItems(userId, cartItemIds);
@@ -69,7 +75,7 @@ public class OrderService {
 
         if (userCouponId != null) {
             UserCoupon userCoupon = validateAndGetUserCoupon(userId, userCouponId);
-            coupon = couponService.findCouponById(userCoupon.getCouponId());
+            coupon = couponService.findCouponById(userCoupon.getCoupon().getId());
             discountAmount = coupon.calculateDiscountAmount(itemsTotal);
         }
 
@@ -84,25 +90,27 @@ public class OrderService {
 
         cartService.removeCartItems(cartItemIds);
 
-        return toOrderResponse(savedOrder, coupon, discountAmount);
+        // 저장된 OrderItems 다시 조회
+        List<OrderItem> savedOrderItems = orderItemRepository.findByOrderId(savedOrder.getId());
+
+        return toOrderResponse(savedOrder, savedOrderItems, coupon, discountAmount);
     }
 
+    @Transactional(readOnly = true)
     public OrderResponse getOrder(Long userId, Long orderId) {
         Order order = requireOrderOwnedByUser(userId, orderId);
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
 
-        order.getItems().clear();
-        order.getItems().addAll(items);
-
         Coupon coupon = null;
         if (order.getUserCouponId() != null) {
             UserCoupon userCoupon = couponService.findUserCouponById(order.getUserCouponId());
-            coupon = couponService.findCouponById(userCoupon.getCouponId());
+            coupon = couponService.findCouponById(userCoupon.getCoupon().getId());
         }
 
-        return toOrderResponse(order, coupon, order.getDiscountAmount());
+        return toOrderResponse(order, items, coupon, order.getDiscountAmount());
     }
 
+    @Transactional(readOnly = true)
     public PagedResult<OrderSummaryResponse> getUserOrders(Long userId, int page, int size) {
         List<Order> allOrders = orderRepository.findByUserId(userId);
         List<OrderSummaryResponse> responses = allOrders.stream()
@@ -111,11 +119,13 @@ public class OrderService {
         return PagedResult.of(responses, page, size);
     }
 
+    @Transactional
     public CancelOrderResponse cancelOrder(Long userId, Long orderId, String reason) {
         requireOrderOwnedByUser(userId, orderId);
         return cancelOrderInternal(orderId, reason);
     }
 
+    @Transactional
     public CancelOrderResponse cancelOrder(Long orderId, String reason) {
         return cancelOrderInternal(orderId, reason);
     }
@@ -151,6 +161,7 @@ public class OrderService {
         );
     }
 
+    @Transactional
     public void completePayment(Long orderId) {
         Order order = findOrderById(orderId);
 
@@ -165,11 +176,11 @@ public class OrderService {
         }
     }
 
-    private OrderResponse toOrderResponse(Order order, Coupon coupon, Long discountAmount) {
-        List<OrderItemResponse> itemResponses = order.getItems().stream()
+    private OrderResponse toOrderResponse(Order order, List<OrderItem> orderItems, Coupon coupon, Long discountAmount) {
+        List<OrderItemResponse> itemResponses = orderItems.stream()
                 .map(item -> OrderItemResponse.of(
                         item.getId(),
-                        item.getProductId(),
+                        item.getProduct().getId(),
                         item.getProductName(),
                         item.getQuantity(),
                         item.getUnitPrice(),
@@ -195,12 +206,12 @@ public class OrderService {
         return OrderResponse.of(
                 order.getId(),
                 order.getOrderNumber(),
-                order.getUserId(),
+                order.getUser().getId(),
                 order.getStatus().name(),
                 itemResponses,
                 pricing,
                 couponResponse,
-                order.getDeliveryAddress(),
+                order.getAddress(),
                 order.getDeliveryMemo(),
                 order.getExpiresAt(),
                 order.getPaidAt(),
@@ -226,7 +237,7 @@ public class OrderService {
     private UserCoupon validateAndGetUserCoupon(Long userId, Long userCouponId) {
         UserCoupon userCoupon = couponService.findUserCouponById(userCouponId);
 
-        if (!userCoupon.getUserId().equals(userId)) {
+        if (!userCoupon.getUser().getId().equals(userId)) {
             throw new BusinessException(OrderErrorCode.INVALID_COUPON_OWNER);
         }
 
@@ -241,8 +252,7 @@ public class OrderService {
         try {
             couponService.cancelCouponUse(userCouponId);
         } catch (Exception e) {
-            // 쿠폰 복구 실패는 로깅만 하고 주문 취소는 계속 진행
-            // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+            log.warn("[Order] 쿠폰 복구 실패 - userCouponId: {}, error: {}", userCouponId, e.getMessage());
         }
     }
 
@@ -250,8 +260,7 @@ public class OrderService {
         try {
             couponService.releaseCouponReservation(userCouponId);
         } catch (Exception e) {
-            // 쿠폰 예약 해제 실패는 로깅만 하고 주문 취소는 계속 진행
-            // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+            log.warn("[Order] 쿠폰 예약 해제 실패 - userCouponId: {}, error: {}", userCouponId, e.getMessage());
         }
     }
 
@@ -265,7 +274,7 @@ public class OrderService {
 
     private Map<Long, Product> getProductsForOrder(List<CartItem> cartItems) {
         List<Long> productIds = cartItems.stream()
-                .map(CartItem::getProductId)
+                .map(item -> item.getProduct().getId())
                 .toList();
         return productService.getProductsAsMap(productIds);
     }
@@ -274,7 +283,7 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : cartItems) {
-            Product product = productMap.get(cartItem.getProductId());
+            Product product = productMap.get(cartItem.getProduct().getId());
             if (product == null) {
                 throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
             }
@@ -309,20 +318,19 @@ public class OrderService {
         String orderNumber = generateOrderNumber();
         long finalAmount = itemsTotal - discountAmount;
 
-        // Order will be saved by JPA with auto-generated ID
         Order order = new Order(
                 user,
-                null, // userAddressId - not used in current implementation
+                null,
                 userCouponId,
                 orderNumber,
                 itemsTotal,
                 discountAmount,
                 finalAmount,
-                user.getName(), // recipientName
-                user.getPhone(), // recipientPhone
-                "", // postalCode - extracted from deliveryAddress if needed
+                user.getName(),
+                user.getPhone(),
+                "",
                 deliveryAddress != null ? deliveryAddress : "",
-                null, // addressDetail
+                null,
                 deliveryMemo
         );
 
@@ -352,10 +360,10 @@ public class OrderService {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
             try {
-                productService.releaseStockReservation(item.getProductId(), item.getQuantity());
+                productService.releaseStockReservation(item.getProduct().getId(), item.getQuantity());
             } catch (Exception e) {
-                // 재고 예약 해제 실패는 로깅만 하고 주문 취소는 계속 진행
-                // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+                log.warn("[Order] 재고 예약 해제 실패 - orderId: {}, productId: {}, error: {}",
+                        orderId, item.getProduct().getId(), e.getMessage());
             }
         }
     }
@@ -363,14 +371,14 @@ public class OrderService {
     private void confirmStockReservations(Long orderId) {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
-            productService.confirmStockReservation(item.getProductId(), item.getQuantity());
+            productService.confirmStockReservation(item.getProduct().getId(), item.getQuantity());
         }
     }
 
     private void incrementSalesCount(Long orderId) {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
-            productService.incrementSalesCount(item.getProductId(), item.getQuantity());
+            productService.incrementSalesCount(item.getProduct().getId(), item.getQuantity());
         }
     }
 

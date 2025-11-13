@@ -53,7 +53,7 @@ public class CartService {
     @Transactional
     public CartItemAddResponse updateItemQuantity(Long userId, Long cartItemId, int quantity) {
         CartItem cartItem = findCartItemById(cartItemId);
-        Cart cart = findCartById(cartItem.getCartId());
+        Cart cart = findCartById(cartItem.getCart().getId());
 
         validateCartOwnership(cart, userId);
 
@@ -66,7 +66,7 @@ public class CartService {
     @Transactional
     public void removeItem(Long userId, Long cartItemId) {
         CartItem cartItem = findCartItemById(cartItemId);
-        Cart cart = findCartById(cartItem.getCartId());
+        Cart cart = findCartById(cartItem.getCart().getId());
 
         validateCartOwnership(cart, userId);
 
@@ -112,7 +112,7 @@ public class CartService {
         List<CartItem> cartItems = cart.getItems();
 
         List<Long> productIds = cartItems.stream()
-                .map(CartItem::getProductId)
+                .map(item -> item.getProduct().getId())
                 .distinct()
                 .toList();
 
@@ -170,7 +170,7 @@ public class CartService {
     private CartItemAddResponse toCartItemAddResponse(CartItem cartItem, Product product) {
         return CartItemAddResponse.of(
                 cartItem.getId(),
-                cartItem.getProductId(),
+                cartItem.getProduct().getId(),
                 product.getName(),
                 cartItem.getQuantity(),
                 product.getPrice() * cartItem.getQuantity(),
@@ -179,12 +179,12 @@ public class CartService {
     }
 
     private CartItemResponse toCartItemResponse(CartItem cartItem, Map<Long, Product> productMap, Map<Long, Inventory> inventoryMap) {
-        Product product = productMap.get(cartItem.getProductId());
-        Inventory inventory = inventoryMap.getOrDefault(cartItem.getProductId(), new Inventory(null, 0, 0));
+        Product product = productMap.get(cartItem.getProduct().getId());
+        Inventory inventory = inventoryMap.getOrDefault(cartItem.getProduct().getId(), new Inventory(null, 0, 0));
 
         return CartItemResponse.of(
                 cartItem.getId(),
-                cartItem.getProductId(),
+                cartItem.getProduct().getId(),
                 product != null ? product.getName() : "",
                 product != null ? product.getImageUrl() : null,
                 product != null ? product.getPrice() : 0L,

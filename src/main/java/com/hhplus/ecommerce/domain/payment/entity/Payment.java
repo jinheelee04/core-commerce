@@ -1,6 +1,7 @@
 package com.hhplus.ecommerce.domain.payment.entity;
 
 import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "payments")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Payment {
+public class Payment extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,26 +49,6 @@ public class Payment {
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.status == null) {
-            this.status = PaymentStatus.PENDING;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
     public Payment(Order order, Long amount, PaymentMethod paymentMethod, String clientRequestId) {
         this.order = order;
@@ -79,6 +60,7 @@ public class Payment {
 
     // 결제 성공 처리
     public void markAsSuccess(String transactionId) {
+        validatePendingStatus();
         this.status = PaymentStatus.SUCCESS;
         this.transactionId = transactionId;
         this.paidAt = LocalDateTime.now();
@@ -112,24 +94,9 @@ public class Payment {
         return status == PaymentStatus.PENDING;
     }
 
-    // 편의 메서드
-    public Long getOrderId() {
-        return order != null ? order.getId() : null;
-    }
-
-    public enum PaymentMethod {
-        CARD,           // 카드
-        VIRTUAL_ACCOUNT, // 가상계좌
-        PHONE           // 휴대폰
-    }
-
-    /**
-     * 결제 상태
-     */
-    public enum PaymentStatus {
-        PENDING,   // 결제 대기
-        SUCCESS,   // 결제 성공
-        FAILED,    // 결제 실패
-        CANCELLED  // 결제 취소
+    private void validatePendingStatus() {
+        if (this.status != PaymentStatus.PENDING) {
+            throw new IllegalStateException("결제 대기 상태에서만 결제를 완료할 수 있습니다: " + status);
+        }
     }
 }

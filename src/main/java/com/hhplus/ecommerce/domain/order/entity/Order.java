@@ -1,6 +1,8 @@
 package com.hhplus.ecommerce.domain.order.entity;
 
 import com.hhplus.ecommerce.domain.user.entity.User;
+import com.hhplus.ecommerce.domain.user.entity.UserAddress;
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -14,7 +16,7 @@ import java.util.List;
 @Table(name = "orders")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Order {
+public class Order extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,8 +29,10 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    @Column(name = "user_address_id")
-    private Long userAddressId;
+    // 배송지 참조 (선택적 - 조회용, 배송지가 삭제되어도 주문은 유지됨)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_address_id")
+    private UserAddress userAddress;
 
     @Column(name = "user_coupon_id")
     private Long userCouponId;
@@ -80,42 +84,13 @@ public class Order {
     @Column(name = "cancel_reason", length = 255)
     private String cancelReason;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.status == null) {
-            this.status = OrderStatus.PENDING;
-        }
-        if (this.itemsTotal == null) {
-            this.itemsTotal = 0L;
-        }
-        if (this.discountAmount == null) {
-            this.discountAmount = 0L;
-        }
-        if (this.finalAmount == null) {
-            this.finalAmount = 0L;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
-    public Order(User user, Long userAddressId, Long userCouponId, String orderNumber,
+    public Order(User user, UserAddress userAddress, Long userCouponId, String orderNumber,
                  Long itemsTotal, Long discountAmount, Long finalAmount,
                  String recipientName, String recipientPhone, String postalCode,
                  String address, String addressDetail, String deliveryMemo) {
         this.user = user;
-        this.userAddressId = userAddressId;
+        this.userAddress = userAddress;
         this.userCouponId = userCouponId;
         this.orderNumber = orderNumber;
         this.status = OrderStatus.PENDING;
@@ -177,30 +152,9 @@ public class Order {
         return status == OrderStatus.CANCELLED;
     }
 
-    // 편의 메서드
-    public Long getUserId() {
-        return user != null ? user.getId() : null;
-    }
-
-    public List<OrderItem> getItems() {
-        return orderItems;
-    }
-
-    public String getDeliveryAddress() {
-        return address;
-    }
-
-    public String getDeliveryMemo() {
-        return deliveryMemo;
-    }
-
     public Integer getTotalQuantity() {
         return orderItems.stream()
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
-    }
-
-    public void setUserCouponId(Long userCouponId) {
-        this.userCouponId = userCouponId;
     }
 }

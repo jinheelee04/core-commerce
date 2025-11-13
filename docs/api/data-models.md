@@ -890,7 +890,6 @@ ORDER BY changed_at ASC;
 | `product_id` | BIGINT | NO | - | 상품 ID (FK, UK) |
 | `stock` | INT | NO | 0 | 현재 재고 |
 | `reserved_stock` | INT | NO | 0 | 예약 재고 |
-| `available_stock` | INT (GENERATED) | NO | - | 판매 가능 재고 (stock - reserved_stock) |
 | `low_stock_threshold` | INT | NO | 10 | 낮은 재고 기준 |
 | `created_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP | 생성일시 |
 | `updated_at` | TIMESTAMP | NO | CURRENT_TIMESTAMP ON UPDATE | 수정일시 |
@@ -898,18 +897,6 @@ ORDER BY changed_at ASC;
 **제약조건**
 - PRIMARY KEY: `id`
 - UNIQUE KEY: `product_id` (1 상품 = 1 재고)
-
-**생성 컬럼 (Generated Column)**
-```sql
--- MySQL 5.7.6 이상에서 지원
-ALTER TABLE inventory ADD COLUMN available_stock INT
-  GENERATED ALWAYS AS (stock - reserved_stock) VIRTUAL;
-```
-
-> **참고**:
-> - `available_stock`은 VIRTUAL 생성 컬럼으로 물리적 저장 공간을 차지하지 않습니다.
-> - 조회 시마다 계산되므로 항상 최신 값을 반환합니다.
-> - 인메모리 구현 시에는 애플리케이션 레벨에서 계산하여 반환합니다.
 
 **주요 컬럼 설명**
 

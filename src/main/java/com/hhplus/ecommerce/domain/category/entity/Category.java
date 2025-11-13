@@ -1,24 +1,32 @@
 package com.hhplus.ecommerce.domain.category.entity;
 
+import com.hhplus.ecommerce.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "categories")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Category {
+public class Category extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "parent_id")
-    private Long parentId;
+    // 자기 참조 연관관계 - 부모 카테고리
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
+
+    // 자식 카테고리 목록 (양방향 매핑 - 선택적)
+    @OneToMany(mappedBy = "parent")
+    private List<Category> children = new ArrayList<>();
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -38,33 +46,10 @@ public class Category {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        if (this.displayOrder == null) {
-            this.displayOrder = 0;
-        }
-        if (this.isActive == null) {
-            this.isActive = true;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     // 비즈니스 로직용 생성자
-    public Category(Long parentId, String name, String nameEn, Integer level,
+    public Category(Category parent, String name, String nameEn, Integer level,
                     Integer displayOrder, String imageUrl) {
-        this.parentId = parentId;
+        this.parent = parent;
         this.name = name;
         this.nameEn = nameEn;
         this.level = level;
@@ -94,6 +79,20 @@ public class Category {
 
     // 최상위 카테고리 여부 확인
     public boolean isTopLevel() {
-        return this.parentId == null;
+        return this.parent == null;
+    }
+
+    // 부모 카테고리 설정
+    public void setParent(Category parent) {
+        this.parent = parent;
+        if (parent != null && !parent.getChildren().contains(this)) {
+            parent.getChildren().add(this);
+        }
+    }
+
+    // 자식 카테고리 추가
+    public void addChild(Category child) {
+        this.children.add(child);
+        child.parent = this;
     }
 }

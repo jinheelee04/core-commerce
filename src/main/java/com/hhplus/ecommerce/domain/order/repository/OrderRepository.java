@@ -28,6 +28,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "WHERE o.user.id = :userId")
     List<Order> findByUserIdWithItems(@Param("userId") Long userId);
 
+    @Query("SELECT o FROM Order o " +
+           "JOIN FETCH o.user " +
+           "WHERE o.id = :orderId")
+    Optional<Order> findByIdWithUser(@Param("orderId") Long orderId);
+
     List<Order> findByStatus(OrderStatus status);
 
     @Query("SELECT o FROM Order o WHERE o.status = :status AND o.expiresAt < :now")
