@@ -1,6 +1,7 @@
 package com.hhplus.ecommerce.domain.payment.repository;
 
 import com.hhplus.ecommerce.domain.payment.entity.Payment;
+import com.hhplus.ecommerce.domain.payment.entity.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,11 +20,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByOrderIdWithOrder(@Param("orderId") Long orderId);
 
     @Query("SELECT p FROM Payment p WHERE p.order.id = :orderId AND p.status = :status")
-    Optional<Payment> findByOrderIdAndStatus(@Param("orderId") Long orderId, @Param("status") Payment.PaymentStatus status);
+    Optional<Payment> findByOrderIdAndStatus(@Param("orderId") Long orderId, @Param("status") PaymentStatus status);
 
     Optional<Payment> findByClientRequestId(String clientRequestId);
 
     Optional<Payment> findByTransactionId(String transactionId);
 
-    List<Payment> findByStatus(Payment.PaymentStatus status);
+    List<Payment> findByStatus(PaymentStatus status);
 }
