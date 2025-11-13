@@ -1,27 +1,32 @@
 package com.hhplus.ecommerce.domain.order.service;
 
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
+import com.hhplus.ecommerce.domain.cart.entity.CartItem;
 import com.hhplus.ecommerce.domain.cart.service.CartService;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
 import com.hhplus.ecommerce.domain.order.dto.*;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderItem;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderItem;
 import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
 import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
+import com.hhplus.ecommerce.domain.product.entity.Product;
 import com.hhplus.ecommerce.domain.product.service.ProductService;
+import com.hhplus.ecommerce.domain.user.entity.User;
+import com.hhplus.ecommerce.domain.user.repository.UserRepository;
 import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,25 +38,30 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final UserRepository userRepository;
     private final CartService cartService;
     private final ProductService productService;
     private final CouponService couponService;
 
+    @Transactional(readOnly = true)
     public Order findOrderById(Long orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
+    @Transactional(readOnly = true)
     public Order requireOrderOwnedByUser(Long userId, Long orderId) {
-        Order order = findOrderById(orderId);
+        Order order = orderRepository.findByIdWithUser(orderId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
-        if (!order.getUserId().equals(userId)) {
+        if (!order.getUser().getId().equals(userId)) {
             throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
         }
 
         return order;
     }
 
+    @Transactional
     public OrderResponse createOrder(Long userId, List<Long> cartItemIds, Long userCouponId,
                                      String deliveryAddress, String deliveryMemo) {
         List<CartItem> cartItems = getValidCartItems(userId, cartItemIds);
@@ -64,14 +74,14 @@ public class OrderService {
 
         if (userCouponId != null) {
             UserCoupon userCoupon = validateAndGetUserCoupon(userId, userCouponId);
-            coupon = couponService.findCouponById(userCoupon.getCouponId());
-            discountAmount = coupon.calculateDiscount(itemsTotal);
+            coupon = couponService.findCouponById(userCoupon.getCoupon().getId());
+            discountAmount = coupon.calculateDiscountAmount(itemsTotal);
         }
 
         Order order = buildOrder(userId, orderItems, itemsTotal, discountAmount, userCouponId, deliveryAddress, deliveryMemo);
         Order savedOrder = orderRepository.save(order);
 
-        saveOrderItems(savedOrder.getId(), orderItems);
+        saveOrderItems(savedOrder, orderItems);
 
         if (userCouponId != null) {
             couponService.reserveCoupon(userCouponId, savedOrder.getId());
@@ -79,24 +89,26 @@ public class OrderService {
 
         cartService.removeCartItems(cartItemIds);
 
-        return toOrderResponse(savedOrder, coupon, discountAmount);
+        List<OrderItem> savedOrderItems = orderItemRepository.findByOrderId(savedOrder.getId());
+
+        return toOrderResponse(savedOrder, savedOrderItems, coupon, discountAmount);
     }
 
+    @Transactional(readOnly = true)
     public OrderResponse getOrder(Long userId, Long orderId) {
         Order order = requireOrderOwnedByUser(userId, orderId);
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
 
-        Order orderWithItems = enrichOrderWithItems(order, items);
-
         Coupon coupon = null;
-        if (orderWithItems.getUserCouponId() != null) {
-            UserCoupon userCoupon = couponService.findUserCouponById(orderWithItems.getUserCouponId());
-            coupon = couponService.findCouponById(userCoupon.getCouponId());
+        if (order.getUserCouponId() != null) {
+            UserCoupon userCoupon = couponService.findUserCouponById(order.getUserCouponId());
+            coupon = couponService.findCouponById(userCoupon.getCoupon().getId());
         }
 
-        return toOrderResponse(orderWithItems, coupon, orderWithItems.getDiscountAmount());
+        return toOrderResponse(order, items, coupon, order.getDiscountAmount());
     }
 
+    @Transactional(readOnly = true)
     public PagedResult<OrderSummaryResponse> getUserOrders(Long userId, int page, int size) {
         List<Order> allOrders = orderRepository.findByUserId(userId);
         List<OrderSummaryResponse> responses = allOrders.stream()
@@ -105,11 +117,13 @@ public class OrderService {
         return PagedResult.of(responses, page, size);
     }
 
+    @Transactional
     public CancelOrderResponse cancelOrder(Long userId, Long orderId, String reason) {
         requireOrderOwnedByUser(userId, orderId);
         return cancelOrderInternal(orderId, reason);
     }
 
+    @Transactional
     public CancelOrderResponse cancelOrder(Long orderId, String reason) {
         return cancelOrderInternal(orderId, reason);
     }
@@ -145,6 +159,7 @@ public class OrderService {
         );
     }
 
+    @Transactional
     public void completePayment(Long orderId) {
         Order order = findOrderById(orderId);
 
@@ -159,11 +174,11 @@ public class OrderService {
         }
     }
 
-    private OrderResponse toOrderResponse(Order order, Coupon coupon, Long discountAmount) {
-        List<OrderItemResponse> itemResponses = order.getItems().stream()
+    private OrderResponse toOrderResponse(Order order, List<OrderItem> orderItems, Coupon coupon, Long discountAmount) {
+        List<OrderItemResponse> itemResponses = orderItems.stream()
                 .map(item -> OrderItemResponse.of(
                         item.getId(),
-                        item.getProductId(),
+                        item.getProduct().getId(),
                         item.getProductName(),
                         item.getQuantity(),
                         item.getUnitPrice(),
@@ -189,12 +204,12 @@ public class OrderService {
         return OrderResponse.of(
                 order.getId(),
                 order.getOrderNumber(),
-                order.getUserId(),
+                order.getUser().getId(),
                 order.getStatus().name(),
                 itemResponses,
                 pricing,
                 couponResponse,
-                order.getDeliveryAddress(),
+                order.getAddress(),
                 order.getDeliveryMemo(),
                 order.getExpiresAt(),
                 order.getPaidAt(),
@@ -220,7 +235,7 @@ public class OrderService {
     private UserCoupon validateAndGetUserCoupon(Long userId, Long userCouponId) {
         UserCoupon userCoupon = couponService.findUserCouponById(userCouponId);
 
-        if (!userCoupon.getUserId().equals(userId)) {
+        if (!userCoupon.getUser().getId().equals(userId)) {
             throw new BusinessException(OrderErrorCode.INVALID_COUPON_OWNER);
         }
 
@@ -235,8 +250,7 @@ public class OrderService {
         try {
             couponService.cancelCouponUse(userCouponId);
         } catch (Exception e) {
-            // 쿠폰 복구 실패는 로깅만 하고 주문 취소는 계속 진행
-            // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+            log.warn("[Order] 쿠폰 복구 실패 - userCouponId: {}, error: {}", userCouponId, e.getMessage());
         }
     }
 
@@ -244,8 +258,7 @@ public class OrderService {
         try {
             couponService.releaseCouponReservation(userCouponId);
         } catch (Exception e) {
-            // 쿠폰 예약 해제 실패는 로깅만 하고 주문 취소는 계속 진행
-            // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+            log.warn("[Order] 쿠폰 예약 해제 실패 - userCouponId: {}, error: {}", userCouponId, e.getMessage());
         }
     }
 
@@ -259,7 +272,7 @@ public class OrderService {
 
     private Map<Long, Product> getProductsForOrder(List<CartItem> cartItems) {
         List<Long> productIds = cartItems.stream()
-                .map(CartItem::getProductId)
+                .map(item -> item.getProduct().getId())
                 .toList();
         return productService.getProductsAsMap(productIds);
     }
@@ -268,17 +281,16 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : cartItems) {
-            Product product = productMap.get(cartItem.getProductId());
+            Product product = productMap.get(cartItem.getProduct().getId());
             if (product == null) {
                 throw new BusinessException(OrderErrorCode.INVALID_ORDER_REQUEST);
             }
 
             productService.reserveStock(product.getId(), cartItem.getQuantity());
 
-            Long itemId = orderItemRepository.generateNextId();
-            OrderItem orderItem = OrderItem.create(
-                    itemId,
-                    product.getId(),
+            OrderItem orderItem = new OrderItem(
+                    null,
+                    product,
                     product.getName(),
                     cartItem.getQuantity(),
                     product.getPrice()
@@ -297,32 +309,58 @@ public class OrderService {
 
     private Order buildOrder(Long userId, List<OrderItem> orderItems, long itemsTotal, long discountAmount,
                              Long userCouponId, String deliveryAddress, String deliveryMemo) {
-        Long orderId = orderRepository.generateNextId();
-        String orderNumber = orderRepository.generateOrderNumber();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.USER_NOT_FOUND));
 
-        return Order.create(orderId, userId, orderNumber, orderItems,
-                itemsTotal, discountAmount, userCouponId, deliveryAddress, deliveryMemo);
+        String orderNumber = generateOrderNumber();
+        long finalAmount = itemsTotal - discountAmount;
+
+        Order order = new Order(
+                user,
+                null,
+                userCouponId,
+                orderNumber,
+                itemsTotal,
+                discountAmount,
+                finalAmount,
+                user.getName(),
+                user.getPhone(),
+                "",
+                deliveryAddress != null ? deliveryAddress : "",
+                null,
+                deliveryMemo
+        );
+
+        return order;
     }
 
-    private void saveOrderItems(Long orderId, List<OrderItem> orderItems) {
+    private String generateOrderNumber() {
+        return "ORD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + String.format("%04d", (int)(Math.random() * 10000));
+    }
+
+    private void saveOrderItems(Order order, List<OrderItem> orderItems) {
         for (OrderItem item : orderItems) {
-            OrderItem itemWithOrderId = item.withOrderId(orderId);
-            orderItemRepository.save(itemWithOrderId);
+            // Create new OrderItem with order reference
+            OrderItem itemWithOrder = new OrderItem(
+                    order,
+                    item.getProduct(),
+                    item.getProductName(),
+                    item.getQuantity(),
+                    item.getUnitPrice()
+            );
+            orderItemRepository.save(itemWithOrder);
         }
-    }
-
-    private Order enrichOrderWithItems(Order order, List<OrderItem> items) {
-        return order.withItems(items);
     }
 
     private void releaseStockReservations(Long orderId) {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
             try {
-                productService.releaseStockReservation(item.getProductId(), item.getQuantity());
+                productService.releaseStockReservation(item.getProduct().getId(), item.getQuantity());
             } catch (Exception e) {
-                // 재고 예약 해제 실패는 로깅만 하고 주문 취소는 계속 진행
-                // 실제 운영 환경에서는 로깅 시스템을 사용해야 함
+                log.warn("[Order] 재고 예약 해제 실패 - orderId: {}, productId: {}, error: {}",
+                        orderId, item.getProduct().getId(), e.getMessage());
             }
         }
     }
@@ -330,14 +368,14 @@ public class OrderService {
     private void confirmStockReservations(Long orderId) {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
-            productService.confirmStockReservation(item.getProductId(), item.getQuantity());
+            productService.confirmStockReservation(item.getProduct().getId(), item.getQuantity());
         }
     }
 
     private void incrementSalesCount(Long orderId) {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
-            productService.incrementSalesCount(item.getProductId(), item.getQuantity());
+            productService.incrementSalesCount(item.getProduct().getId(), item.getQuantity());
         }
     }
 

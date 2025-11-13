@@ -2,7 +2,8 @@ package com.hhplus.ecommerce.domain.payment.controller;
 
 import com.hhplus.ecommerce.domain.payment.dto.PaymentRequest;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
-import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
+import com.hhplus.ecommerce.domain.payment.entity.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.service.PaymentService;
 import com.hhplus.ecommerce.global.dto.CommonResponse;
 import com.hhplus.ecommerce.global.constants.HttpHeaders;

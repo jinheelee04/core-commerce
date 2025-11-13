@@ -1,17 +1,17 @@
 package com.hhplus.ecommerce.domain.payment.service;
 
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.service.CouponService;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
 import com.hhplus.ecommerce.domain.order.service.OrderService;
 import com.hhplus.ecommerce.domain.payment.dto.PaymentResponse;
+import com.hhplus.ecommerce.domain.payment.entity.Payment;
+import com.hhplus.ecommerce.domain.payment.entity.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.event.PaymentCompletedEvent;
 import com.hhplus.ecommerce.domain.payment.event.PaymentFailedEvent;
 import com.hhplus.ecommerce.domain.payment.exception.PaymentErrorCode;
-import com.hhplus.ecommerce.domain.payment.model.Payment;
-import com.hhplus.ecommerce.domain.payment.model.PaymentMethod;
 import com.hhplus.ecommerce.domain.payment.repository.PaymentRepository;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import com.hhplus.ecommerce.global.exception.DomainExceptionMapper;
@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -39,11 +40,13 @@ public class PaymentService {
     @Value("${mock.payment.url}")
     private String mockPaymentUrl;
 
+    @Transactional(readOnly = true)
     public Payment findPaymentById(Long paymentId){
         return  paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
 
+    @Transactional
     public PaymentResponse processPayment(Long userId, Long orderId, PaymentMethod paymentMethod, String clientRequestId) {
         log.info("[Payment] 결제 요청 시작 - userId: {}, orderId: {}, method: {}, clientRequestId: {}",
                 userId, orderId, paymentMethod, clientRequestId);
@@ -71,16 +74,18 @@ public class PaymentService {
         return toPaymentResponse(payment);
     }
 
+    @Transactional(readOnly = true)
     public PaymentResponse getPayment(Long userId, Long paymentId) {
         Payment payment = findPaymentById(paymentId);
-        validateOrderOwnership(userId, payment.getOrderId(), "결제 조회");
+        validateOrderOwnership(userId, payment.getOrder().getId(), "결제 조회");
 
         return toPaymentResponse(payment);
     }
 
+    @Transactional(readOnly = true)
     public PaymentResponse getPaymentByOrderId(Long userId, Long orderId) {
         validateOrderOwnership(userId, orderId, "결제 조회");
-        Payment payment = paymentRepository.findByOrderId(orderId)
+        Payment payment = paymentRepository.findByOrderIdWithOrder(orderId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         return toPaymentResponse(payment);
@@ -124,7 +129,7 @@ public class PaymentService {
 
 
     private Payment checkExistingSuccessfulPayment(Long orderId) {
-        Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
+        Payment existingPayment = paymentRepository.findByOrderIdWithOrder(orderId).orElse(null);
         if (existingPayment != null && existingPayment.isSuccess()) {
             return existingPayment;
         }
@@ -132,8 +137,8 @@ public class PaymentService {
     }
 
     private Payment createPendingPayment(Long orderId, Long amount, PaymentMethod paymentMethod, String clientRequestId) {
-        Long paymentId = paymentRepository.generateNextId();
-        return Payment.createPending(paymentId, orderId, amount, paymentMethod, clientRequestId);
+        Order order = orderService.findOrderById(orderId);
+        return new Payment(order, amount, paymentMethod, clientRequestId);
     }
 
     private void executePayment(Order order, Payment payment, PaymentMethod method) {
@@ -224,18 +229,17 @@ public class PaymentService {
         PaymentResponse.PaymentCouponInfo couponInfo = null;
 
         try {
-            Order order = orderService.findOrderById(payment.getOrderId());
+            Order order = payment.getOrder();
             if (order.getUserCouponId() != null) {
                 couponInfo = getCouponInfo(order.getUserCouponId(), order.getDiscountAmount());
             }
         } catch (Exception e) {
-            log.warn("[Payment] 쿠폰 정보 조회 실패 - paymentId: {}, orderId: {}, error: {}",
-                    payment.getId(), payment.getOrderId(), e.getMessage());
+            log.warn("[Payment] 주문 정보 조회 실패 - paymentId: {}, error: {}", payment.getId(), e.getMessage());
         }
 
         return PaymentResponse.of(
                 payment.getId(),
-                payment.getOrderId(),
+                payment.getOrder().getId(),
                 payment.getAmount(),
                 payment.getPaymentMethod().name(),
                 payment.getStatus().name(),
@@ -251,7 +255,7 @@ public class PaymentService {
     private PaymentResponse.PaymentCouponInfo getCouponInfo(Long userCouponId, Long discountAmount) {
         try {
             UserCoupon userCoupon = couponService.findUserCouponById(userCouponId);
-            Coupon coupon = couponService.findCouponById(userCoupon.getCouponId());
+            Coupon coupon = couponService.findCouponById(userCoupon.getCoupon().getId());
             return PaymentResponse.PaymentCouponInfo.of(
                     coupon.getId(),
                     coupon.getName(),

@@ -1,5 +1,5 @@
 HELP.md
-CLAUDE.md
+CLAUDE*.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -36,3 +36,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Environment
+.env
+
+test_output.txt
+nul
+
+# MySQL - exclude data directory only, keep scripts
+/mysql/data

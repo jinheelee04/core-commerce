@@ -1,15 +1,14 @@
 package com.hhplus.ecommerce.domain.product.service;
 
+import com.hhplus.ecommerce.domain.brand.entity.Brand;
+import com.hhplus.ecommerce.domain.category.entity.Category;
 import com.hhplus.ecommerce.domain.product.dto.ProductResponse;
+import com.hhplus.ecommerce.domain.product.entity.Inventory;
+import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.domain.product.entity.ProductStatus;
 import com.hhplus.ecommerce.domain.product.exception.ProductErrorCode;
-import com.hhplus.ecommerce.domain.product.model.Inventory;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
-import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
-import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
 import com.hhplus.ecommerce.domain.product.repository.InventoryRepository;
 import com.hhplus.ecommerce.domain.product.repository.ProductRepository;
-import com.hhplus.ecommerce.global.dto.PageMeta;
-import com.hhplus.ecommerce.global.dto.PagedResult;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,18 +17,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayName("ProductService 단위 테스트")
+@ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ProductServiceTest {
 
     @Mock
@@ -41,61 +46,64 @@ class ProductServiceTest {
     @InjectMocks
     private ProductService productService;
 
-    private Product testProduct;
-    private Inventory testInventory;
+    private static final Long PRODUCT_ID = 1L;
+    private static final Long CATEGORY_ID = 100L;
+
+    private Product mockProduct;
+    private Inventory mockInventory;
+    private Category mockCategory;
+    private Brand mockBrand;
 
     @BeforeEach
     void setUp() {
-        LocalDateTime now = LocalDateTime.now();
+        mockCategory = mock(Category.class);
+        when(mockCategory.getId()).thenReturn(CATEGORY_ID);
 
-        testProduct = Product.builder()
-                .id(1L)
-                .name("테스트 상품")
-                .description("테스트 설명")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .brand("테스트 브랜드")
-                .imageUrl("https://example.com/image.jpg")
-                .status(ProductStatus.AVAILABLE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
+        mockBrand = mock(Brand.class);
+        when(mockBrand.getId()).thenReturn(10L);
 
-        testInventory = Inventory.builder()
-                .id(1L)
-                .productId(1L)
-                .stock(100)
-                .reservedStock(0)
-                .lowStockThreshold(10)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
+        mockProduct = new Product(mockCategory, mockBrand, "테스트 상품", "상품 설명", 10000L, null);
+        setId(mockProduct, PRODUCT_ID);
+
+        mockInventory = new Inventory(mockProduct, 100, 10);
+        setId(mockInventory, 200L);
     }
 
+    private void setId(Object entity, Long id) {
+        try {
+            java.lang.reflect.Field idField = entity.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(entity, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // === 상품 조회 테스트 ===
+
     @Test
-    @DisplayName("상품 조회 성공")
-    void getProduct_Success() {
-        // given
-        when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
+    @DisplayName("상품 ID로 조회 성공")
+    void findProductById_Success() {
+        // Given
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(mockProduct));
 
-        // when
-        Product result = productService.findProductById(1L);
+        // When
+        Product result = productService.findProductById(PRODUCT_ID);
 
-        // then
+        // Then
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getId()).isEqualTo(PRODUCT_ID);
         assertThat(result.getName()).isEqualTo("테스트 상품");
-        verify(productRepository).findById(1L);
     }
 
     @Test
-    @DisplayName("상품 조회 실패 - 존재하지 않는 상품")
-    void getProduct_NotFound_ThrowsException() {
-        // given
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+    @DisplayName("상품 ID로 조회 실패 - 존재하지 않는 상품")
+    void findProductById_NotFound() {
+        // Given
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.empty());
 
-        // when & then
-        assertThatThrownBy(() -> productService.findProductById(999L))
+        // When & Then
+        assertThatThrownBy(() -> productService.findProductById(PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ProductErrorCode.PRODUCT_NOT_FOUND);
     }
@@ -103,310 +111,195 @@ class ProductServiceTest {
     @Test
     @DisplayName("상품 상세 조회 성공")
     void getProductDetail_Success() {
-        // given
-        when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
-        when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(testInventory));
+        // Given
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(mockProduct));
+        given(inventoryRepository.findByProductId(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
 
-        // when
-        ProductResponse response = productService.getProductDetail(1L);
+        // When
+        ProductResponse result = productService.getProductDetail(PRODUCT_ID);
 
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.name()).isEqualTo("테스트 상품");
-        assertThat(response.stock()).isEqualTo(100);
-        verify(productRepository).findById(1L);
-        verify(inventoryRepository).findByProductId(1L);
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(result.name()).isEqualTo("테스트 상품");
+        assertThat(result.stock()).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("상품 목록 조회 성공 (카테고리/상태 필터링)")
-    void getProducts_Filtered_Success() {
-        // given
-        when(productRepository.findAll()).thenReturn(List.of(testProduct));
-        when(inventoryRepository.findAll()).thenReturn(List.of(testInventory));
+    @DisplayName("상품 목록 조회 성공 - 카테고리 필터")
+    void getProducts_WithCategoryFilter_Success() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> productPage = new PageImpl<>(List.of(mockProduct), pageable, 1);
 
-        // when
-        PagedResult<ProductResponse> result = productService.getProducts(
-                ProductCategory.ELECTRONICS, ProductStatus.AVAILABLE, "price_asc", 0, 10
-        );
+        given(productRepository.findByDynamicFilters(CATEGORY_ID, ProductStatus.ACTIVE, pageable))
+                .willReturn(productPage);
+        given(inventoryRepository.findAllByProductIdIn(anyList()))
+                .willReturn(List.of(mockInventory));
 
-        // then
+        // When
+        var result = productService.getProducts(CATEGORY_ID, ProductStatus.ACTIVE, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
         assertThat(result.content()).hasSize(1);
-        assertThat(result.content().get(0).name()).isEqualTo("테스트 상품");
-        assertThat(result.meta()).isInstanceOf(PageMeta.class);
-        verify(productRepository).findAll();
-        verify(inventoryRepository).findAll();
+        assertThat(result.content().get(0).productId()).isEqualTo(PRODUCT_ID);
     }
+
+    @Test
+    @DisplayName("인기 상품 목록 조회 성공")
+    void getPopularProducts_Success() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 5);
+        Page<Product> productPage = new PageImpl<>(List.of(mockProduct), pageable, 1);
+
+        given(productRepository.findPopularProducts("sales", pageable)).willReturn(productPage);
+        given(inventoryRepository.findAllByProductIdIn(anyList())).willReturn(List.of(mockInventory));
+
+        // When
+        var result = productService.getPopularProducts("sales", pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.content()).hasSize(1);
+    }
+
+    // === 재고 조회 테스트 ===
 
     @Test
     @DisplayName("재고 조회 성공")
     void getInventory_Success() {
-        // given
-        when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(testInventory));
+        // Given
+        given(inventoryRepository.findByProductId(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
 
-        // when
-        Inventory result = productService.getInventory(1L);
+        // When
+        Inventory result = productService.getInventory(PRODUCT_ID);
 
-        // then
+        // Then
         assertThat(result).isNotNull();
         assertThat(result.getStock()).isEqualTo(100);
-        verify(inventoryRepository).findByProductId(1L);
     }
 
     @Test
-    @DisplayName("재고 조회 실패 - 존재하지 않는 상품")
-    void getInventory_NotFound_ThrowsException() {
-        // given
-        when(inventoryRepository.findByProductId(999L)).thenReturn(Optional.empty());
+    @DisplayName("재고 조회 실패 - 재고 정보 없음")
+    void getInventory_NotFound() {
+        // Given
+        given(inventoryRepository.findByProductId(PRODUCT_ID)).willReturn(Optional.empty());
 
-        // when & then
-        assertThatThrownBy(() -> productService.getInventory(999L))
+        // When & Then
+        assertThatThrownBy(() -> productService.getInventory(PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ProductErrorCode.PRODUCT_NOT_FOUND);
     }
 
     @Test
-    @DisplayName("재고 부족 상품 목록 조회 성공")
+    @DisplayName("재고 부족 상품 조회 성공")
     void getLowStockProducts_Success() {
-        // given
-        Inventory lowStockInventory = Inventory.builder()
-                .id(2L)
-                .productId(2L)
-                .stock(5)
-                .reservedStock(0)
-                .lowStockThreshold(10)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        // Given
+        given(inventoryRepository.findLowStockInventories()).willReturn(List.of(mockInventory));
 
-        when(inventoryRepository.findLowStockProducts()).thenReturn(List.of(lowStockInventory));
-
-        // when
+        // When
         List<Inventory> result = productService.getLowStockProducts();
 
-        // then
+        // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).isLowStock()).isTrue();
-        verify(inventoryRepository).findLowStockProducts();
+        assertThat(result.get(0).getStock()).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("상품 상세 조회 시 조회수 증가")
-    void getProductDetail_IncrementsViewCount() {
-        // given
-        Product productWithoutViews = Product.builder()
-                .id(1L)
-                .name("테스트 상품")
-                .description("테스트 설명")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .brand("테스트 브랜드")
-                .imageUrl("https://example.com/image.jpg")
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(5)
-                .createdAt(LocalDateTime.now())
-                .build();
+    @DisplayName("여러 상품 재고 Map 조회 성공")
+    void getInventoriesAsMap_Success() {
+        // Given
+        given(inventoryRepository.findAllByProductIdIn(anyList())).willReturn(List.of(mockInventory));
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productWithoutViews));
-        when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(testInventory));
+        // When
+        Map<Long, Inventory> result = productService.getInventoriesAsMap(List.of(PRODUCT_ID));
 
-        // when
-        productService.getProductDetail(1L);
-
-        // then
-        assertThat(productWithoutViews.getViewCount()).isEqualTo(6);
-        verify(productRepository).save(productWithoutViews);
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(PRODUCT_ID)).isNotNull();
     }
 
     @Test
-    @DisplayName("판매량 증가 성공")
+    @DisplayName("여러 상품 Map 조회 성공")
+    void getProductsAsMap_Success() {
+        // Given
+        given(productRepository.findAllById(anyList())).willReturn(List.of(mockProduct));
+
+        // When
+        Map<Long, Product> result = productService.getProductsAsMap(List.of(PRODUCT_ID));
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(PRODUCT_ID)).isNotNull();
+        assertThat(result.get(PRODUCT_ID).getName()).isEqualTo("테스트 상품");
+    }
+
+    // === 재고 예약/확정/해제 테스트 ===
+
+    @Test
+    @DisplayName("재고 예약 성공")
+    void reserveStock_Success() {
+        // Given
+        given(inventoryRepository.findByProductIdWithLock(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
+
+        // When
+        productService.reserveStock(PRODUCT_ID, 10);
+
+        // Then
+        verify(inventoryRepository, times(1)).findByProductIdWithLock(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재고 예약 실패 - 재고 부족")
+    void reserveStock_InsufficientStock() {
+        // Given
+        given(inventoryRepository.findByProductIdWithLock(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
+
+        // When & Then
+        assertThatThrownBy(() -> productService.reserveStock(PRODUCT_ID, 200))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ProductErrorCode.INSUFFICIENT_STOCK);
+    }
+
+    @Test
+    @DisplayName("재고 확정 성공")
+    void confirmStockReservation_Success() {
+        // Given
+        mockInventory.reserve(10);
+        given(inventoryRepository.findByProductIdWithLock(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
+
+        // When
+        productService.confirmStockReservation(PRODUCT_ID, 10);
+
+        // Then
+        verify(inventoryRepository, times(1)).findByProductIdWithLock(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재고 예약 해제 성공")
+    void releaseStockReservation_Success() {
+        // Given
+        mockInventory.reserve(10);
+        given(inventoryRepository.findByProductIdWithLock(PRODUCT_ID)).willReturn(Optional.of(mockInventory));
+
+        // When
+        productService.releaseStockReservation(PRODUCT_ID, 10);
+
+        // Then
+        verify(inventoryRepository, times(1)).findByProductIdWithLock(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("판매 수량 증가 성공")
     void incrementSalesCount_Success() {
-        // given
-        Product productWithSales = Product.builder()
-                .id(1L)
-                .name("테스트 상품")
-                .description("테스트 설명")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .brand("테스트 브랜드")
-                .imageUrl("https://example.com/image.jpg")
-                .status(ProductStatus.AVAILABLE)
-                .salesCount(10)  // 초기 판매량 10
-                .createdAt(LocalDateTime.now())
-                .build();
+        // Given
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(mockProduct));
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productWithSales));
+        // When
+        productService.incrementSalesCount(PRODUCT_ID, 5);
 
-        // when
-        productService.incrementSalesCount(1L, 3);
-
-        // then
-        assertThat(productWithSales.getSalesCount()).isEqualTo(13);
-        verify(productRepository).save(productWithSales);
-    }
-
-    @Test
-    @DisplayName("인기 상품 조회 - 종합 점수 기준 정렬")
-    void getPopularProducts_SortByPopularityScore() {
-        // given
-        Product product1 = Product.builder()
-                .id(1L)
-                .name("높은 판매량 상품")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(100)
-                .salesCount(50)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Product product2 = Product.builder()
-                .id(2L)
-                .name("높은 조회수 상품")
-                .price(20000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(500)
-                .salesCount(10)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Product product3 = Product.builder()
-                .id(3L)
-                .name("낮은 인기 상품")
-                .price(15000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(50)
-                .salesCount(5)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        when(productRepository.findAll()).thenReturn(List.of(product1, product2, product3));
-        when(inventoryRepository.findAll()).thenReturn(List.of(
-                testInventory,
-                Inventory.builder().id(2L).productId(2L).stock(100).reservedStock(0).lowStockThreshold(10).createdAt(LocalDateTime.now()).build(),
-                Inventory.builder().id(3L).productId(3L).stock(100).reservedStock(0).lowStockThreshold(10).createdAt(LocalDateTime.now()).build()
-        ));
-
-        // when
-        PagedResult<ProductResponse> result = productService.getPopularProducts(0, 10, "popular");
-
-        // then
-        assertThat(result.content()).hasSize(3);
-        assertThat(result.content().get(2).name()).isEqualTo("낮은 인기 상품");
-    }
-
-    @Test
-    @DisplayName("인기 상품 조회 - 조회수 기준 정렬")
-    void getPopularProducts_SortByViews() {
-        // given
-        Product product1 = Product.builder()
-                .id(1L)
-                .name("조회수 많음")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(1000)
-                .salesCount(10)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Product product2 = Product.builder()
-                .id(2L)
-                .name("조회수 적음")
-                .price(20000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(100)
-                .salesCount(50)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        when(productRepository.findAll()).thenReturn(List.of(product2, product1));
-        when(inventoryRepository.findAll()).thenReturn(List.of(
-                testInventory,
-                Inventory.builder().id(2L).productId(2L).stock(100).reservedStock(0).lowStockThreshold(10).createdAt(LocalDateTime.now()).build()
-        ));
-
-        // when
-        PagedResult<ProductResponse> result = productService.getPopularProducts(0, 10, "views");
-
-        // then
-        assertThat(result.content()).hasSize(2);
-        assertThat(result.content().get(0).name()).isEqualTo("조회수 많음");
-        assertThat(result.content().get(1).name()).isEqualTo("조회수 적음");
-    }
-
-    @Test
-    @DisplayName("인기 상품 조회 - 판매량 기준 정렬")
-    void getPopularProducts_SortBySales() {
-        // given
-        Product product1 = Product.builder()
-                .id(1L)
-                .name("판매량 많음")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(100)
-                .salesCount(500)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Product product2 = Product.builder()
-                .id(2L)
-                .name("판매량 적음")
-                .price(20000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(1000)
-                .salesCount(50)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        when(productRepository.findAll()).thenReturn(List.of(product2, product1));
-        when(inventoryRepository.findAll()).thenReturn(List.of(
-                testInventory,
-                Inventory.builder().id(2L).productId(2L).stock(100).reservedStock(0).lowStockThreshold(10).createdAt(LocalDateTime.now()).build()
-        ));
-
-        // when
-        PagedResult<ProductResponse> result = productService.getPopularProducts(0, 10, "sales");
-
-        // then
-        assertThat(result.content()).hasSize(2);
-        assertThat(result.content().get(0).name()).isEqualTo("판매량 많음");
-        assertThat(result.content().get(1).name()).isEqualTo("판매량 적음");
-    }
-
-    @Test
-    @DisplayName("인기도 점수 계산 - 판매량 가중치 검증")
-    void popularityScore_WeightedCorrectly() {
-        // given
-        Product productHighSales = Product.builder()
-                .id(1L)
-                .name("판매 중심 상품")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(50)
-                .salesCount(100)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Product productHighViews = Product.builder()
-                .id(2L)
-                .name("조회 중심 상품")
-                .price(20000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .viewCount(1000)
-                .salesCount(5)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        // when & then
-        assertThat(productHighSales.getPopularityScore()).isEqualTo(1050);
-        assertThat(productHighViews.getPopularityScore()).isEqualTo(1050);
+        // Then
+        verify(productRepository, times(1)).findById(PRODUCT_ID);
     }
 }

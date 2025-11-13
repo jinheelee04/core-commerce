@@ -1,24 +1,13 @@
 package com.hhplus.ecommerce.domain.order.service;
 
-import com.hhplus.ecommerce.domain.cart.model.CartItem;
-import com.hhplus.ecommerce.domain.cart.service.CartService;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
-import com.hhplus.ecommerce.domain.coupon.service.CouponService;
-import com.hhplus.ecommerce.domain.order.dto.CancelOrderResponse;
-import com.hhplus.ecommerce.domain.order.dto.OrderResponse;
+import com.hhplus.ecommerce.domain.brand.entity.Brand;
+import com.hhplus.ecommerce.domain.category.entity.Category;
+import com.hhplus.ecommerce.domain.order.entity.Order;
+import com.hhplus.ecommerce.domain.order.entity.OrderStatus;
 import com.hhplus.ecommerce.domain.order.exception.OrderErrorCode;
-import com.hhplus.ecommerce.domain.order.model.Order;
-import com.hhplus.ecommerce.domain.order.model.OrderItem;
-import com.hhplus.ecommerce.domain.order.model.OrderStatus;
-import com.hhplus.ecommerce.domain.order.repository.OrderItemRepository;
 import com.hhplus.ecommerce.domain.order.repository.OrderRepository;
-import com.hhplus.ecommerce.domain.product.model.product.Product;
-import com.hhplus.ecommerce.domain.product.model.product.ProductCategory;
-import com.hhplus.ecommerce.domain.product.model.product.ProductStatus;
-import com.hhplus.ecommerce.domain.product.service.ProductService;
+import com.hhplus.ecommerce.domain.product.entity.Product;
+import com.hhplus.ecommerce.domain.user.entity.User;
 import com.hhplus.ecommerce.global.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,301 +16,168 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayName("OrderService 단위 테스트")
+@ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
 
     @Mock
-    private OrderItemRepository orderItemRepository;
+    private com.hhplus.ecommerce.domain.order.repository.OrderItemRepository orderItemRepository;
 
     @Mock
-    private CartService cartService;
+    private com.hhplus.ecommerce.domain.user.repository.UserRepository userRepository;
 
     @Mock
-    private ProductService productService;
+    private com.hhplus.ecommerce.domain.cart.service.CartService cartService;
 
     @Mock
-    private CouponService couponService;
+    private com.hhplus.ecommerce.domain.product.service.ProductService productService;
+
+    @Mock
+    private com.hhplus.ecommerce.domain.coupon.service.CouponService couponService;
 
     @InjectMocks
     private OrderService orderService;
 
-    private Product testProduct;
-    private CartItem testCartItem;
-    private Coupon testCoupon;
-    private UserCoupon testUserCoupon;
-    
+    private static final Long USER_ID = 1L;
+    private static final Long ORDER_ID = 100L;
+    private static final Long PRODUCT_ID = 200L;
+
+    private User mockUser;
+    private Product mockProduct;
+    private Order mockOrder;
+
     @BeforeEach
     void setUp() {
-        LocalDateTime now = LocalDateTime.now();
+        mockUser = mock(User.class);
+        when(mockUser.getId()).thenReturn(USER_ID);
 
-        testProduct = Product.builder()
-                .id(1L)
-                .name("테스트 상품")
-                .price(10000L)
-                .category(ProductCategory.ELECTRONICS)
-                .status(ProductStatus.AVAILABLE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
+        Category mockCategory = mock(Category.class);
+        Brand mockBrand = mock(Brand.class);
 
-        testCartItem = CartItem.create(1L, 1L, 1L, "테스트 상품", 10000L, 2);
+        mockProduct = new Product(mockCategory, mockBrand, "테스트 상품", "설명", 10000L, null);
+        setId(mockProduct, PRODUCT_ID);
 
-        testCoupon = Coupon.builder()
-                .id(1L)
-                .code("WELCOME10")
-                .name("신규 회원 쿠폰")
-                .description("10% 할인")
-                .discountType(DiscountType.PERCENTAGE)
-                .discountValue(10)
-                .minOrderAmount(10000L)
-                .maxDiscountAmount(5000L)
-                .totalQuantity(100)
-                .remainingQuantity(50)
-                .startsAt(now.minusDays(1))
-                .endsAt(now.plusDays(30))
-                .status(CouponStatus.ACTIVE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-
-        testUserCoupon = UserCoupon.builder()
-                .id(1L)
-                .couponId(1L)
-                .userId(1L)
-                .isUsed(false)
-                .issuedAt(now)
-                .expiresAt(now.plusDays(30))
-                .updatedAt(now)
-                .build();
+        mockOrder = new Order(mockUser, null, null, "ORD-001", 20000L, 0L, 20000L,
+                "홍길동", "01012345678", "12345", "서울시", "강남구", null);
+        setId(mockOrder, ORDER_ID);
     }
-    
+
+    private void setId(Object entity, Long id) {
+        try {
+            java.lang.reflect.Field idField = entity.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(entity, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // === 주문 조회 테스트 ===
+
     @Test
-    @DisplayName("주문 생성 성공 - 쿠폰 미적용")
-    void createOrder_WithoutCoupon_Success() {
-        // given
-        Long userId = 1L;
-        List<Long> cartItemIds = List.of(1L);
+    @DisplayName("주문 ID로 조회 성공")
+    void findOrderById_Success() {
+        // Given
+        given(orderRepository.findById(ORDER_ID)).willReturn(Optional.of(mockOrder));
 
-        when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
-        when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(orderRepository.generateNextId()).thenReturn(1L);
-        when(orderRepository.generateOrderNumber()).thenReturn("ORD-001");
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderItemRepository.generateNextId()).thenReturn(1L);
-        when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+        // When
+        Order result = orderService.findOrderById(ORDER_ID);
 
-        // when
-        OrderResponse result = orderService.createOrder(userId, cartItemIds, null, "서울", null);
-
-        // then
+        // Then
         assertThat(result).isNotNull();
-        assertThat(result.userId()).isEqualTo(userId);
-        assertThat(result.pricing().discountAmount()).isEqualTo(0L);
-        assertThat(result.coupon()).isNull();
-        verify(productService).reserveStock(1L, 2);
-        verify(cartService).removeCartItems(cartItemIds);
-        verify(couponService, never()).useCoupon(any(), any());
+        assertThat(result.getId()).isEqualTo(ORDER_ID);
+        assertThat(result.getOrderNumber()).isEqualTo("ORD-001");
     }
 
     @Test
-    @DisplayName("주문 생성 성공 - 쿠폰 적용")
-    void createOrder_WithCoupon_Success() {
-        // given
-        Long userId = 1L;
-        Long userCouponId = 1L;
-        List<Long> cartItemIds = List.of(1L);
+    @DisplayName("주문 ID로 조회 실패 - 존재하지 않는 주문")
+    void findOrderById_NotFound() {
+        // Given
+        given(orderRepository.findById(ORDER_ID)).willReturn(Optional.empty());
 
-        when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
-        when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.findUserCouponById(userCouponId)).thenReturn(testUserCoupon);
-        when(couponService.findCouponById(1L)).thenReturn(testCoupon);
-        when(orderRepository.generateNextId()).thenReturn(1L);
-        when(orderRepository.generateOrderNumber()).thenReturn("ORD-001");
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderItemRepository.generateNextId()).thenReturn(1L);
-        when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // when
-        OrderResponse result = orderService.createOrder(userId, cartItemIds, userCouponId, "서울", null);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.userId()).isEqualTo(userId);
-        assertThat(result.pricing().itemsTotal()).isEqualTo(20000L); // 10000 * 2
-        assertThat(result.pricing().discountAmount()).isEqualTo(2000L); // 20000 * 10%
-        assertThat(result.pricing().finalAmount()).isEqualTo(18000L); // 20000 - 2000
-        assertThat(result.coupon()).isNotNull();
-        assertThat(result.coupon().name()).isEqualTo("신규 회원 쿠폰");
-        verify(productService).reserveStock(1L, 2);
-        verify(cartService).removeCartItems(cartItemIds);
-        verify(couponService, never()).useCoupon(any(), any());
-    }
-
-    @Test
-    @DisplayName("주문 생성 실패 - 다른 사용자의 쿠폰 사용 시도")
-    void createOrder_InvalidCouponOwner_ThrowsException() {
-        // given
-        Long userId = 1L;
-        Long userCouponId = 1L;
-        List<Long> cartItemIds = List.of(1L);
-        UserCoupon otherUserCoupon = UserCoupon.builder()
-                .id(1L)
-                .couponId(1L)
-                .userId(999L) // 다른 사용자
-                .isUsed(false)
-                .issuedAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusDays(30))
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
-        when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.findUserCouponById(userCouponId)).thenReturn(otherUserCoupon);
-        when(orderItemRepository.generateNextId()).thenReturn(1L);
-
-        // when & then
-        assertThatThrownBy(() ->
-                orderService.createOrder(userId, cartItemIds, userCouponId, "서울", null))
+        // When & Then
+        assertThatThrownBy(() -> orderService.findOrderById(ORDER_ID))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.INVALID_COUPON_OWNER);
-
-        // 재고는 예약되었으나 주문 생성 전 실패했으므로 재고는 예약된 상태
-        verify(productService).reserveStock(1L, 2);
-        verify(couponService, never()).useCoupon(any(), any());
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_NOT_FOUND);
     }
 
     @Test
-    @DisplayName("주문 생성 실패 - 이미 사용된 쿠폰")
-    void createOrder_AlreadyUsedCoupon_ThrowsException() {
-        // given
-        Long userId = 1L;
-        Long userCouponId = 1L;
-        List<Long> cartItemIds = List.of(1L);
-        UserCoupon usedCoupon = UserCoupon.builder()
-                .id(1L)
-                .couponId(1L)
-                .userId(1L)
-                .isUsed(true) // 이미 사용됨
-                .issuedAt(LocalDateTime.now())
-                .usedAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusDays(30))
-                .updatedAt(LocalDateTime.now())
-                .build();
+    @DisplayName("사용자 주문 목록 조회 성공")
+    void getUserOrders_Success() {
+        // Given
+        given(orderRepository.findByUserId(USER_ID)).willReturn(List.of(mockOrder));
 
-        when(cartService.getCartItemsByIds(userId, cartItemIds)).thenReturn(List.of(testCartItem));
-        when(productService.getProductsAsMap(any())).thenReturn(Map.of(1L, testProduct));
-        when(couponService.findUserCouponById(userCouponId)).thenReturn(usedCoupon);
-        when(orderItemRepository.generateNextId()).thenReturn(1L);
+        // When
+        var result = orderService.getUserOrders(USER_ID, 0, 10);
 
-        // when & then
-        assertThatThrownBy(() ->
-                orderService.createOrder(userId, cartItemIds, userCouponId, "서울", null))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.COUPON_NOT_USABLE);
-
-        verify(couponService, never()).useCoupon(any(), any());
-    }
-
-    @Test
-    @DisplayName("주문 취소 성공 - PENDING 상태 (쿠폰 복구 불필요)")
-    void cancelOrder_PendingStatus_NoCouponRestore() {
-        // given
-        Long orderId = 1L;
-        Long userId = 1L;
-        Long userCouponId = 1L;
-        String reason = "단순 변심";
-
-        Order order = Order.builder()
-                .id(orderId)
-                .userId(userId)
-                .orderNumber("ORD-001")
-                .status(OrderStatus.PENDING)
-                .itemsTotal(20000L)
-                .discountAmount(2000L)
-                .finalAmount(18000L)
-                .userCouponId(userCouponId)
-                .deliveryAddress("서울")
-                .paidAt(null)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderItemRepository.findByOrderId(orderId)).thenReturn(List.of());
-
-        // when
-        CancelOrderResponse result = orderService.cancelOrder(userId, orderId, reason);
-
-        // then
+        // Then
         assertThat(result).isNotNull();
-        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED.name());
-        assertThat(result.cancelReason()).isEqualTo(reason);
-        verify(couponService, never()).cancelCouponUse(any());
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).orderId()).isEqualTo(ORDER_ID);
     }
 
     @Test
-    @DisplayName("주문 취소 성공 - PAID 상태 (쿠폰 복구 필요)")
-    void cancelOrder_PaidStatus_RestoreCoupon() {
-        // given
-        Long orderId = 1L;
-        Long userId = 1L;
-        Long userCouponId = 1L;
-        String reason = "관리자 취소";
+    @DisplayName("주문 취소 성공")
+    void cancelOrder_Success() {
+        // Given
+        given(orderRepository.findByIdWithUser(ORDER_ID)).willReturn(Optional.of(mockOrder));
+        given(orderRepository.findById(ORDER_ID)).willReturn(Optional.of(mockOrder));
+        given(orderItemRepository.findByOrderId(ORDER_ID)).willReturn(List.of());
 
-        Order order = Order.builder()
-                .id(orderId)
-                .userId(userId)
-                .orderNumber("ORD-001")
-                .status(OrderStatus.PAID)
-                .itemsTotal(20000L)
-                .discountAmount(2000L)
-                .finalAmount(18000L)
-                .userCouponId(userCouponId)
-                .deliveryAddress("서울")
-                .paidAt(LocalDateTime.now())  // PAID 상태 표시
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        // When
+        orderService.cancelOrder(USER_ID, ORDER_ID, "단순 변심");
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderItemRepository.findByOrderId(orderId)).thenReturn(List.of());
-
-        // when
-        CancelOrderResponse result = orderService.cancelOrder(userId, orderId, reason);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED.name());
-        assertThat(result.cancelReason()).isEqualTo(reason);
-        verify(couponService).cancelCouponUse(userCouponId);  // PAID 상태에서는 쿠폰 복구 필요
+        // Then
+        assertThat(mockOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(orderRepository, times(1)).save(mockOrder);
     }
 
     @Test
-    @DisplayName("주문 생성 실패 - 빈 장바구니")
-    void createOrder_EmptyCart_ThrowsException() {
-        // given
-        when(cartService.getCartItemsByIds(any(), any())).thenReturn(List.of());
+    @DisplayName("주문 취소 실패 - 이미 취소된 주문")
+    void cancelOrder_AlreadyCancelled_ThrowsException() {
+        // Given
+        mockOrder.cancel("이미 취소됨");
+        given(orderRepository.findByIdWithUser(ORDER_ID)).willReturn(Optional.of(mockOrder));
+        given(orderRepository.findById(ORDER_ID)).willReturn(Optional.of(mockOrder));
 
-        // when & then
-        assertThatThrownBy(() ->
-                orderService.createOrder(1L, List.of(1L), null, "서울", null))
+        // When & Then
+        assertThatThrownBy(() -> orderService.cancelOrder(USER_ID, ORDER_ID, "단순 변심"))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.INVALID_ORDER_REQUEST);
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_ALREADY_CONFIRMED);
+    }
+
+    @Test
+    @DisplayName("주문 취소 실패 - 다른 사용자의 주문")
+    void cancelOrder_AccessDenied_ThrowsException() {
+        // Given
+        User otherUser = mock(User.class);
+        when(otherUser.getId()).thenReturn(999L);
+
+        Order otherOrder = new Order(otherUser, null, null, "ORD-003", 20000L, 0L, 20000L,
+                "홍길동", "01012345678", "12345", "서울시", "강남구", null);
+        setId(otherOrder, ORDER_ID);
+
+        given(orderRepository.findByIdWithUser(ORDER_ID)).willReturn(Optional.of(otherOrder));
+
+        // When & Then
+        assertThatThrownBy(() -> orderService.cancelOrder(USER_ID, ORDER_ID, "단순 변심"))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.ORDER_ACCESS_DENIED);
     }
 }

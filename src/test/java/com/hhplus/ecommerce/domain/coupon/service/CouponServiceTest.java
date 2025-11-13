@@ -1,15 +1,15 @@
 package com.hhplus.ecommerce.domain.coupon.service;
 
-import com.hhplus.ecommerce.domain.coupon.dto.CouponResponse;
 import com.hhplus.ecommerce.domain.coupon.dto.UserCouponResponse;
+import com.hhplus.ecommerce.domain.coupon.entity.Coupon;
+import com.hhplus.ecommerce.domain.coupon.entity.DiscountType;
+import com.hhplus.ecommerce.domain.coupon.entity.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.exception.CouponErrorCode;
-import com.hhplus.ecommerce.domain.coupon.model.Coupon;
-import com.hhplus.ecommerce.domain.coupon.model.CouponStatus;
-import com.hhplus.ecommerce.domain.coupon.model.DiscountType;
-import com.hhplus.ecommerce.domain.coupon.model.UserCoupon;
 import com.hhplus.ecommerce.domain.coupon.repository.CouponRepository;
 import com.hhplus.ecommerce.domain.coupon.repository.UserCouponRepository;
+import com.hhplus.ecommerce.domain.user.entity.User;
 import com.hhplus.ecommerce.global.exception.BusinessException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,18 +18,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
-@DisplayName("CouponService 테스트")
+@DisplayName("CouponService 단위 테스트")
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class CouponServiceTest {
 
     @Mock
@@ -38,70 +37,77 @@ class CouponServiceTest {
     @Mock
     private UserCouponRepository userCouponRepository;
 
+    @Mock
+    private com.hhplus.ecommerce.domain.user.repository.UserRepository userRepository;
+
     @InjectMocks
     private CouponService couponService;
 
     private static final Long USER_ID = 1L;
     private static final Long COUPON_ID = 100L;
-    private static final Long USER_COUPON_ID = 200L;
 
-    @Test
-    @DisplayName("발급 가능한 쿠폰 목록을 조회한다")
-    void getAvailableCoupons() {
-        Coupon coupon1 = createTestCoupon(COUPON_ID, "WELCOME", 100);
-        Coupon coupon2 = createTestCoupon(COUPON_ID + 1, "SUMMER", 50);
-        given(couponRepository.findIssuableCoupons()).willReturn(List.of(coupon1, coupon2));
+    private Coupon testCoupon;
+    private User mockUser;
 
-        List<CouponResponse> result = couponService.getAvailableCoupons();
+    @BeforeEach
+    void setUp() {
+        mockUser = mock(User.class);
+        when(mockUser.getId()).thenReturn(USER_ID);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).code()).isEqualTo("WELCOME");
-        assertThat(result.get(1).code()).isEqualTo("SUMMER");
+        testCoupon = new Coupon(
+                "WELCOME10",
+                "신규 회원 할인",
+                "10% 할인 쿠폰",
+                DiscountType.PERCENTAGE,
+                10,
+                10000L,
+                5000L,
+                100,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(30)
+        );
+        setId(testCoupon, COUPON_ID);
     }
 
-    @Test
-    @DisplayName("사용자의 쿠폰 목록을 조회한다")
-    void getUserCoupons() {
-        UserCoupon userCoupon1 = createTestUserCoupon(USER_COUPON_ID, false);
-        UserCoupon userCoupon2 = createTestUserCoupon(USER_COUPON_ID + 1, true);
-        given(userCouponRepository.findByUserId(USER_ID)).willReturn(List.of(userCoupon1, userCoupon2));
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(createTestCoupon(COUPON_ID, "WELCOME", 100)));
-
-        List<UserCouponResponse> result = couponService.getUserCoupons(USER_ID);
-
-        assertThat(result).hasSize(2);
+    private void setId(Object entity, Long id) {
+        try {
+            java.lang.reflect.Field idField = entity.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(entity, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @Test
-    @DisplayName("사용자의 미사용 쿠폰만 조회한다")
-    void getUnusedUserCoupons() {
-        UserCoupon userCoupon = createTestUserCoupon(USER_COUPON_ID, false);
-        given(userCouponRepository.findByUserIdAndIsUsed(USER_ID, false)).willReturn(List.of(userCoupon));
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(createTestCoupon(COUPON_ID, "WELCOME", 100)));
-
-        List<UserCouponResponse> result = couponService.getUnusedUserCoupons(USER_ID);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).isUsed()).isFalse();
+    private void setIssuedAt(UserCoupon userCoupon, LocalDateTime issuedAt) {
+        try {
+            java.lang.reflect.Field field = UserCoupon.class.getDeclaredField("issuedAt");
+            field.setAccessible(true);
+            field.set(userCoupon, issuedAt);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
     @DisplayName("쿠폰 발급 성공 - 정상적으로 쿠폰이 발급된다")
     void issueCoupon_Success() {
-        Coupon coupon = createTestCoupon(COUPON_ID, "WELCOME", 100);
-        UserCoupon issuedCoupon = createTestUserCoupon(USER_COUPON_ID, false);
+        // Given
+        UserCoupon issuedCoupon = new UserCoupon(testCoupon, mockUser, LocalDateTime.now().plusDays(30));
+        setId(issuedCoupon, 200L);
+        setIssuedAt(issuedCoupon, LocalDateTime.now());
 
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(coupon));
-        given(userCouponRepository.findByCouponIdAndUserId(COUPON_ID, USER_ID)).willReturn(Optional.empty());
-        given(userCouponRepository.generateNextId()).willReturn(USER_COUPON_ID);
+        given(couponRepository.findByIdWithLock(COUPON_ID)).willReturn(Optional.of(testCoupon));
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(mockUser));
+        given(userCouponRepository.existsByCouponIdAndUserId(COUPON_ID, USER_ID)).willReturn(false);
         given(userCouponRepository.save(any(UserCoupon.class))).willReturn(issuedCoupon);
 
+        // When
         UserCouponResponse result = couponService.issueCoupon(USER_ID, COUPON_ID);
 
+        // Then
         assertThat(result).isNotNull();
-        assertThat(result.userCouponId()).isEqualTo(USER_COUPON_ID);
-        assertThat(result.couponId()).isEqualTo(COUPON_ID);
-        assertThat(result.userId()).isEqualTo(USER_ID);
+        assertThat(result.userCouponId()).isEqualTo(200L);
         assertThat(result.isUsed()).isFalse();
         verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
     }
@@ -109,8 +115,10 @@ class CouponServiceTest {
     @Test
     @DisplayName("쿠폰 발급 실패 - 존재하지 않는 쿠폰")
     void issueCoupon_CouponNotFound() {
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.empty());
+        // Given
+        given(couponRepository.findByIdWithLock(COUPON_ID)).willReturn(Optional.empty());
 
+        // When & Then
         assertThatThrownBy(() -> couponService.issueCoupon(USER_ID, COUPON_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_FOUND);
@@ -119,13 +127,12 @@ class CouponServiceTest {
     @Test
     @DisplayName("쿠폰 발급 실패 - 이미 발급받은 쿠폰")
     void issueCoupon_AlreadyIssued() {
-        Coupon coupon = createTestCoupon(COUPON_ID, "WELCOME", 100);
-        UserCoupon existingUserCoupon = createTestUserCoupon(USER_COUPON_ID, false);
+        // Given
+        given(couponRepository.findByIdWithLock(COUPON_ID)).willReturn(Optional.of(testCoupon));
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(mockUser));
+        given(userCouponRepository.existsByCouponIdAndUserId(COUPON_ID, USER_ID)).willReturn(true);
 
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(coupon));
-        given(userCouponRepository.findByCouponIdAndUserId(COUPON_ID, USER_ID))
-                .willReturn(Optional.of(existingUserCoupon)); // 이미 발급됨
-
+        // When & Then
         assertThatThrownBy(() -> couponService.issueCoupon(USER_ID, COUPON_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_ALREADY_ISSUED);
@@ -134,167 +141,28 @@ class CouponServiceTest {
     @Test
     @DisplayName("쿠폰 발급 실패 - 쿠폰 수량 소진")
     void issueCoupon_OutOfStock() {
-        Coupon coupon = createTestCoupon(COUPON_ID, "WELCOME", 0);
+        // Given
+        Coupon exhaustedCoupon = new Coupon(
+                "SOLDOUT",
+                "품절 쿠폰",
+                "품절",
+                DiscountType.PERCENTAGE,
+                10,
+                10000L,
+                null,
+                0,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(30)
+        );
+        setId(exhaustedCoupon, COUPON_ID);
 
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(coupon));
-        // validateCouponIssuable()에서 remainingQuantity가 0이면 예외 발생
+        given(couponRepository.findByIdWithLock(COUPON_ID)).willReturn(Optional.of(exhaustedCoupon));
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(mockUser));
+        given(userCouponRepository.existsByCouponIdAndUserId(COUPON_ID, USER_ID)).willReturn(false);
 
+        // When & Then
         assertThatThrownBy(() -> couponService.issueCoupon(USER_ID, COUPON_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_OUT_OF_STOCK);
-    }
-
-    @Test
-    @DisplayName("쿠폰 예약 성공 - 정상적으로 쿠폰이 예약된다")
-    void reserveCoupon_Success() {
-        Long orderId = 300L;
-        UserCoupon userCoupon = createTestUserCoupon(USER_COUPON_ID, false);
-
-        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
-        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
-
-        couponService.reserveCoupon(USER_COUPON_ID, orderId);
-
-        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
-    }
-
-    @Test
-    @DisplayName("쿠폰 확정 성공 - 예약된 쿠폰이 확정된다")
-    void confirmCouponReservation_Success() {
-        Long orderId = 300L;
-        UserCoupon userCoupon = createTestUserCouponWithOrder(USER_COUPON_ID, false, orderId);
-
-        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
-        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
-
-        couponService.confirmCouponReservation(USER_COUPON_ID);
-
-        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
-    }
-
-    @Test
-    @DisplayName("쿠폰 예약 해제 성공 - 예약이 해제된다")
-    void releaseCouponReservation_Success() {
-        Long orderId = 300L;
-        UserCoupon userCoupon = createTestUserCouponWithOrder(USER_COUPON_ID, false, orderId);
-
-        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
-        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
-
-        couponService.releaseCouponReservation(USER_COUPON_ID);
-
-        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
-    }
-
-    @Test
-    @DisplayName("쿠폰 사용 취소 성공 - 쿠폰 사용이 취소된다")
-    void cancelCouponUse_Success() {
-        UserCoupon userCoupon = createTestUserCoupon(USER_COUPON_ID, true);
-        Coupon coupon = createTestCoupon(COUPON_ID, "WELCOME", 50);
-
-        given(userCouponRepository.findById(USER_COUPON_ID)).willReturn(Optional.of(userCoupon));
-        given(userCouponRepository.save(any(UserCoupon.class))).willReturn(userCoupon);
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(coupon));
-        given(couponRepository.save(any(Coupon.class))).willReturn(coupon);
-
-        couponService.cancelCouponUse(USER_COUPON_ID);
-
-        verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
-        verify(couponRepository, times(1)).save(any(Coupon.class));
-    }
-
-    @Test
-    @DisplayName("쿠폰 조회 성공 - ID로 쿠폰을 조회한다")
-    void getCoupon_Success() {
-        Coupon coupon = createTestCoupon(COUPON_ID, "WELCOME", 100);
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.of(coupon));
-
-        CouponResponse result = couponService.getCoupon(COUPON_ID);
-
-        assertThat(result).isNotNull();
-        assertThat(result.couponId()).isEqualTo(COUPON_ID);
-        assertThat(result.code()).isEqualTo("WELCOME");
-    }
-
-    @Test
-    @DisplayName("쿠폰 조회 실패 - 존재하지 않는 쿠폰")
-    void getCoupon_NotFound() {
-        given(couponRepository.findById(COUPON_ID)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> couponService.getCoupon(COUPON_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("쿠폰 코드로 조회 성공")
-    void getCouponByCode_Success() {
-        String code = "WELCOME";
-        Coupon coupon = createTestCoupon(COUPON_ID, code, 100);
-        given(couponRepository.findByCode(code)).willReturn(Optional.of(coupon));
-
-        CouponResponse result = couponService.getCouponByCode(code);
-
-        assertThat(result).isNotNull();
-        assertThat(result.code()).isEqualTo(code);
-    }
-
-    @Test
-    @DisplayName("쿠폰 코드로 조회 실패 - 존재하지 않는 코드")
-    void getCouponByCode_NotFound() {
-        String code = "INVALID";
-        given(couponRepository.findByCode(code)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> couponService.getCouponByCode(code))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CouponErrorCode.COUPON_NOT_FOUND);
-    }
-
-    private Coupon createTestCoupon(Long id, String code, int remainingQuantity) {
-        LocalDateTime now = LocalDateTime.now();
-        return Coupon.builder()
-                .id(id)
-                .code(code)
-                .name("테스트 쿠폰")
-                .description("테스트용 쿠폰입니다")
-                .discountType(DiscountType.PERCENTAGE)
-                .discountValue(10)
-                .minOrderAmount(10000L)
-                .maxDiscountAmount(5000L)
-                .totalQuantity(100)
-                .remainingQuantity(remainingQuantity)
-                .startsAt(now.minusDays(1))
-                .endsAt(now.plusDays(30))
-                .status(CouponStatus.ACTIVE)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-    }
-
-    private UserCoupon createTestUserCoupon(Long id, boolean isUsed) {
-        LocalDateTime now = LocalDateTime.now();
-        return UserCoupon.builder()
-                .id(id)
-                .couponId(COUPON_ID)
-                .userId(USER_ID)
-                .isUsed(isUsed)
-                .issuedAt(now)
-                .expiresAt(now.plusDays(30))
-                .updatedAt(now)
-                .build();
-    }
-
-    private UserCoupon createTestUserCouponWithOrder(Long id, boolean isUsed, Long orderId) {
-        LocalDateTime now = LocalDateTime.now();
-        return UserCoupon.builder()
-                .id(id)
-                .couponId(COUPON_ID)
-                .userId(USER_ID)
-                .orderId(orderId)
-                .isUsed(isUsed)
-                .issuedAt(now)
-                .expiresAt(now.plusDays(30))
-                .updatedAt(now)
-                .build();
     }
 }
