@@ -39,4 +39,10 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
             @Param("userId") Long userId,
             @Param("now") LocalDateTime now
     );
+
+    @Query("SELECT COUNT(uc) FROM UserCoupon uc WHERE uc.coupon.id = :couponId")
+    long countByCouponId(@Param("couponId") Long couponId);
+
+    @Query("SELECT COUNT(uc) FROM UserCoupon uc WHERE uc.user.id = :userId AND uc.coupon.id = :couponId")
+    long countByUserIdAndCouponId(@Param("userId") Long userId, @Param("couponId") Long couponId);
 }
