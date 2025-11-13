@@ -51,7 +51,6 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public Order requireOrderOwnedByUser(Long userId, Long orderId) {
-        // N+1 방지: User를 함께 조회
         Order order = orderRepository.findByIdWithUser(orderId)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
@@ -90,7 +89,6 @@ public class OrderService {
 
         cartService.removeCartItems(cartItemIds);
 
-        // 저장된 OrderItems 다시 조회
         List<OrderItem> savedOrderItems = orderItemRepository.findByOrderId(savedOrder.getId());
 
         return toOrderResponse(savedOrder, savedOrderItems, coupon, discountAmount);
@@ -290,7 +288,6 @@ public class OrderService {
 
             productService.reserveStock(product.getId(), cartItem.getQuantity());
 
-            // JPA will handle ID generation, pass null for order initially
             OrderItem orderItem = new OrderItem(
                     null,
                     product,

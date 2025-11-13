@@ -90,6 +90,10 @@ public class ProductService {
         Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
 
+        if (inventory.getAvailableStock() < quantity) {
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK);
+        }
+
         inventory.reserve(quantity);
     }
 
